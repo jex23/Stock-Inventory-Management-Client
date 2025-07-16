@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { processManagementService } from '../services/processManagementService';
-import { authService } from '../services/authService'; // Fixed: removed 's' from authServices
+import { authService } from '../services/authService';
 import BatchProcessUpload from '../pages/BatchProcessUpload';
 import type { 
   ProcessManagementResponse,
@@ -43,33 +43,96 @@ const ProcessManagement: React.FC = () => {
   const [showBatchUpload, setShowBatchUpload] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'active' | 'archived' | 'all'>('active');
+  const [debugMode, setDebugMode] = useState(false);
 
   useEffect(() => {
+    console.log('🚀 ProcessManagement component mounted');
+    
+    // Debug API configuration on mount
+    if (process.env.NODE_ENV === 'development') {
+      processManagementService.debugConfiguration();
+    }
+
     // Subscribe to service state changes
     const unsubscribe = processManagementService.subscribe((serviceState) => {
+      console.log('🔄 Service state updated:', serviceState);
       setState(serviceState);
     });
 
     // Load initial data
     loadInitialData();
 
-    return unsubscribe;
+    return () => {
+      console.log('🧹 ProcessManagement component unmounting');
+      unsubscribe();
+    };
   }, []);
 
   const loadInitialData = async () => {
     try {
-      await Promise.all([
-        processManagementService.fetchStats(),
-        processManagementService.fetchItems({ archive: viewMode === 'archived' ? true : viewMode === 'active' ? false : undefined }),
-        processManagementService.fetchBatches()
-      ]);
+      console.log('📋 Loading initial process management data...');
+      
+      // Load each endpoint separately to identify which one fails
+      const loadPromises = [];
+
+      // Load stats
+      try {
+        console.log('📊 Loading stats...');
+        loadPromises.push(
+          processManagementService.fetchStats()
+            .then(() => console.log('✅ Stats loaded successfully'))
+            .catch(error => console.error('❌ Failed to load stats:', error))
+        );
+      } catch (error) {
+        console.error('❌ Error setting up stats loading:', error);
+      }
+
+      // Load batches
+      try {
+        console.log('📦 Loading batches...');
+        loadPromises.push(
+          processManagementService.fetchBatches()
+            .then(() => console.log('✅ Batches loaded successfully'))
+            .catch(error => console.error('❌ Failed to load batches:', error))
+        );
+      } catch (error) {
+        console.error('❌ Error setting up batches loading:', error);
+      }
+
+      // Load items
+      try {
+        console.log('📋 Loading items...');
+        const filters = { 
+          archive: viewMode === 'archived' ? true : viewMode === 'active' ? false : undefined 
+        };
+        console.log('🔍 Using filters:', filters);
+        
+        loadPromises.push(
+          processManagementService.fetchItems(filters)
+            .then(() => console.log('✅ Items loaded successfully'))
+            .catch(error => {
+              console.error('❌ Failed to load items:', error);
+              // Don't rethrow here, let the component handle the error display
+            })
+        );
+      } catch (error) {
+        console.error('❌ Error setting up items loading:', error);
+      }
+
+      // Wait for all promises to settle (not fail fast)
+      await Promise.allSettled(loadPromises);
+      console.log('📋 Initial data loading completed');
+
     } catch (error) {
-      console.error('Failed to load process management data:', error);
+      console.error('❌ Failed to load process management data:', error);
     }
   };
 
+  // Enhanced view mode change handler
   const handleViewModeChange = async (mode: 'active' | 'archived' | 'all') => {
+    console.log('🔄 Changing view mode to:', mode);
     setViewMode(mode);
+    
     const filters: ProcessManagementFilters = {};
     
     if (mode === 'archived') {
@@ -77,26 +140,39 @@ const ProcessManagement: React.FC = () => {
     } else if (mode === 'active') {
       filters.archive = false;
     }
+    // For 'all' mode, don't set archive filter
+
+    console.log('🔍 Applying filters:', filters);
 
     try {
       await processManagementService.fetchItems(filters);
+      console.log('✅ View mode changed successfully');
     } catch (error) {
-      console.error('Failed to filter items:', error);
+      console.error('❌ Failed to filter items:', error);
+      // Show user-friendly error message
+      processManagementService.setPublicError({
+        code: 'FILTER_ERROR',
+        message: 'Failed to filter processes. Please try again.'
+      });
     }
   };
 
   const handleArchiveProcess = async (id: number) => {
     try {
+      console.log('📥 Archiving process:', id);
       const item = state.items.find(i => i.id === id);
-      if (!item) return;
+      if (!item) {
+        console.warn('⚠️ Process item not found:', id);
+        return;
+      }
 
-      // For individual items, we'd need an archive endpoint or update the item
       await processManagementService.updateItem(id, { archive: !item.archive });
       
       // Refresh data
       await loadInitialData();
+      console.log('✅ Process archived successfully');
     } catch (error) {
-      console.error('Failed to archive process:', error);
+      console.error('❌ Failed to archive process:', error);
     }
   };
 
@@ -106,9 +182,11 @@ const ProcessManagement: React.FC = () => {
     }
 
     try {
+      console.log('🗑️ Deleting process:', id);
       await processManagementService.deleteItem(id);
+      console.log('✅ Process deleted successfully');
     } catch (error) {
-      console.error('Failed to delete process:', error);
+      console.error('❌ Failed to delete process:', error);
     }
   };
 
@@ -118,24 +196,59 @@ const ProcessManagement: React.FC = () => {
         return;
       }
       try {
+        console.log('🗑️ Deleting batch:', batchNumber);
         await processManagementService.deleteBatch(batchNumber);
         await loadInitialData();
+        console.log('✅ Batch deleted successfully');
       } catch (error) {
-        console.error('Failed to delete batch:', error);
+        console.error('❌ Failed to delete batch:', error);
       }
     } else if (action === 'archive') {
       try {
+        console.log('📥 Archiving batch:', batchNumber);
         await processManagementService.archiveBatch(batchNumber);
         await loadInitialData();
+        console.log('✅ Batch archived successfully');
       } catch (error) {
-        console.error('Failed to archive batch:', error);
+        console.error('❌ Failed to archive batch:', error);
       }
     }
   };
 
   const handleBatchUploadSuccess = async () => {
+    console.log('✅ Batch upload successful, refreshing data...');
     setShowBatchUpload(false);
     await loadInitialData();
+  };
+
+  // Debug functions
+ const debugApiConnectivity = async () => {
+  console.log('🧪 Starting API connectivity test...');
+  
+  try {
+    const isConnected = await processManagementService.testApiConnectivity();
+    if (isConnected) {
+      alert('✅ API connectivity test passed!');
+    } else {
+      alert('❌ API connectivity test failed. Check console for details.');
+    }
+  } catch (error) {
+    console.error('❌ Debug test failed:', error);
+    
+    // Fix: Properly handle unknown error type
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    alert(`❌ Debug test failed: ${errorMessage}`);
+  }
+};
+
+  const toggleDebugMode = () => {
+    setDebugMode(!debugMode);
+    console.log('🧪 Debug mode:', !debugMode ? 'ON' : 'OFF');
+  };
+
+  const handleClearError = () => {
+    console.log('🧹 Clearing error');
+    processManagementService.clearError();
   };
 
   const formatDate = (dateString: string) => {
@@ -155,15 +268,16 @@ const ProcessManagement: React.FC = () => {
     return currentIndex >= 0 ? ((currentIndex + 1) / stages.length) * 100 : 0;
   };
 
-  const handleClearError = () => {
-    // Clear error through service
-    processManagementService.clearError();
-  };
-
   const currentUser = authService.getUser();
 
   if (!currentUser) {
-    return <div className="process-container">Please log in to access process management.</div>;
+    return (
+      <div className="process-container">
+        <div style={{ textAlign: 'center', padding: '20px' }}>
+          Please log in to access process management.
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -172,6 +286,25 @@ const ProcessManagement: React.FC = () => {
       <div className="page-header">
         <h1>Process Management</h1>
         <div className="header-actions">
+          {/* Debug controls for development */}
+          {process.env.NODE_ENV === 'development' && (
+            <div style={{ display: 'flex', gap: '10px', marginRight: '10px' }}>
+              <button 
+                className="btn btn-secondary"
+                onClick={debugApiConnectivity}
+                title="Test API connectivity"
+              >
+                🧪 Test API
+              </button>
+              <button 
+                className={`btn ${debugMode ? 'btn-warning' : 'btn-secondary'}`}
+                onClick={toggleDebugMode}
+                title="Toggle debug mode"
+              >
+                🔍 Debug {debugMode ? 'ON' : 'OFF'}
+              </button>
+            </div>
+          )}
           <button 
             className="btn btn-primary"
             onClick={() => setShowBatchUpload(true)}
@@ -182,11 +315,86 @@ const ProcessManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* Error Display */}
+      {/* Debug Information */}
+      {debugMode && (
+        <div style={{ 
+          backgroundColor: '#f0f8ff', 
+          border: '1px solid #add8e6', 
+          padding: '12px', 
+          borderRadius: '4px',
+          margin: '10px 0',
+          fontSize: '12px',
+          fontFamily: 'monospace'
+        }}>
+          <strong>🔍 Debug Info:</strong>
+          <pre style={{ margin: '8px 0' }}>
+            {JSON.stringify({
+              currentUser: currentUser?.username,
+              viewMode,
+              filters: state.filters,
+              loading: state.loading,
+              itemsCount: state.items.length,
+              batchesCount: state.batches.length,
+              hasStats: !!state.stats,
+              hasError: !!state.error
+            }, null, 2)}
+          </pre>
+        </div>
+      )}
+
+      {/* Enhanced Error Display */}
       {state.error && (
-        <div className="error-message">
-          <span>⚠️ {processManagementService.getErrorMessage(state.error)}</span>
-          <button onClick={handleClearError}>×</button>
+        <div style={{ 
+          backgroundColor: '#fee', 
+          border: '1px solid #fcc', 
+          padding: '12px', 
+          borderRadius: '4px',
+          margin: '10px 0',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start'
+        }}>
+          <div style={{ flex: 1 }}>
+            <strong>⚠️ {state.error.code}:</strong> {processManagementService.getErrorMessage(state.error)}
+            {state.error.details && debugMode && (
+              <details style={{ marginTop: '8px' }}>
+                <summary style={{ cursor: 'pointer', fontSize: '12px' }}>Show technical details</summary>
+                <pre style={{ fontSize: '11px', marginTop: '4px', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
+                  {JSON.stringify(state.error.details, null, 2)}
+                </pre>
+              </details>
+            )}
+          </div>
+          <button 
+            onClick={handleClearError}
+            style={{ 
+              background: 'none', 
+              border: 'none', 
+              fontSize: '16px', 
+              cursor: 'pointer',
+              padding: '4px 8px',
+              marginLeft: '10px'
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* Loading States */}
+      {(state.loading.stats || state.loading.batches || state.loading.items) && (
+        <div style={{ 
+          backgroundColor: '#f0f8ff', 
+          border: '1px solid #add8e6', 
+          padding: '8px', 
+          borderRadius: '4px',
+          margin: '10px 0',
+          fontSize: '14px'
+        }}>
+          <span>🔄 Loading: </span>
+          {state.loading.stats && <span>Stats... </span>}
+          {state.loading.batches && <span>Batches... </span>}
+          {state.loading.items && <span>Items... </span>}
         </div>
       )}
 
@@ -267,6 +475,11 @@ const ProcessManagement: React.FC = () => {
                 >
                   Create Batch Process
                 </button>
+                {debugMode && (
+                  <div style={{ marginTop: '10px', fontSize: '12px', color: '#666' }}>
+                    Debug: {state.items.length} items, filters: {JSON.stringify(state.filters)}
+                  </div>
+                )}
               </div>
             ) : (
               state.items.map((process) => (
@@ -276,6 +489,11 @@ const ProcessManagement: React.FC = () => {
                     <div className="process-id">
                       {process.process_id_batch ? `Batch: ${process.process_id_batch}` : `ID: ${process.id}`}
                     </div>
+                    {debugMode && (
+                      <div style={{ fontSize: '10px', color: '#666', marginBottom: '5px' }}>
+                        Debug: ID={process.id}, Stock={process.stock_id}, Archive={process.archive}
+                      </div>
+                    )}
                     <div className="process-details">
                       <span className="stage stage-processing">Processing</span>
                       <span className="operator">👤 {process.user_name}</span>
@@ -361,6 +579,11 @@ const ProcessManagement: React.FC = () => {
                       <span>👤 {batch.user_name}</span>
                     </div>
                     <div className="batch-date">{formatDate(batch.manufactured_date)}</div>
+                    {debugMode && (
+                      <div style={{ fontSize: '10px', color: '#666' }}>
+                        Debug: {batch.process_batch_number}
+                      </div>
+                    )}
                   </div>
                   <div className="batch-actions">
                     <button 

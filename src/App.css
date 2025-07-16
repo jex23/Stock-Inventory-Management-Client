@@ -249,13 +249,68 @@ textarea:focus-visible {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
-/* Loading State */
+/* Loading State - Updated with spinner support */
 .loading {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 200px;
   color: #6b7280;
+}
+
+.loading > * {
+  align-self: center;
+  flex-shrink: 0;
+}
+
+/* Loading Spinner Fixes */
+.loading-spinner,
+.spinner,
+[class*="spinner"],
+[class*="loading-icon"] {
+  flex-shrink: 0 !important;
+  flex-grow: 0 !important;
+  aspect-ratio: 1;
+  min-width: fit-content;
+  min-height: fit-content;
+  border-radius: 50%;
+}
+
+/* Spinner Container */
+.spinner-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+/* Basic Spinner Styles */
+.loading-spinner {
+  border: 3px solid rgba(59, 130, 246, 0.2);
+  border-radius: 50%;
+  border-top: 3px solid #3b82f6;
+  animation: spin 1s linear infinite;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  flex-grow: 0;
+}
+
+@keyframes spin {
+  0% { 
+    transform: rotate(0deg); 
+  }
+  100% { 
+    transform: rotate(360deg); 
+  }
+}
+
+/* Fix for spinners in flex/grid containers */
+.main-content .loading-spinner,
+.content-wrapper .loading-spinner,
+.grid-responsive .loading-spinner {
+  align-self: center;
+  justify-self: center;
 }
 
 /* Error State */
@@ -334,6 +389,13 @@ img {
     display: flex;
     align-items: center;
   }
+  
+  /* Responsive spinner sizes for mobile */
+  .loading-spinner {
+    width: 18px;
+    height: 18px;
+    border-width: 2px;
+  }
 }
 
 /* Prevent text overflow */
@@ -365,4 +427,13 @@ img {
   .spacing-sm { margin: 4px 0; }
   .spacing-md { margin: 8px 0; }
   .spacing-lg { margin: 12px 0; }
+}
+
+/* Additional responsive spinner sizes for larger screens */
+@media (min-width: 769px) {
+  .loading-spinner {
+    width: 24px;
+    height: 24px;
+    border-width: 4px;
+  }
 }

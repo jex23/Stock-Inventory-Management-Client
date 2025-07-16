@@ -70,6 +70,7 @@ class ProcessManagementService {
 
   constructor() {
     // Initialize service
+    console.log('🚀 ProcessManagementService initialized');
   }
 
   // Event listener management
@@ -94,9 +95,58 @@ class ProcessManagementService {
     this.notifyListeners();
   }
 
+  public setPublicError(error: ProcessManagementError | null): void {
+    this.setError(error);
+  }
+
   public clearError(): void {
     this.state.error = null;
     this.notifyListeners();
+  }
+
+  // Safe method to get HTTP status codes
+  private getHttpStatus() {
+    const defaultStatus = {
+      UNAUTHORIZED: 401,
+      FORBIDDEN: 403,
+      NOT_FOUND: 404,
+      CONFLICT: 409,
+      UNPROCESSABLE_ENTITY: 422,
+      SERVICE_UNAVAILABLE: 503,
+    };
+    
+    return HTTP_STATUS || defaultStatus;
+  }
+
+  // Safe method to get error messages
+  private getErrorMessages() {
+    const defaultMessages = {
+      NETWORK_ERROR: 'Network error. Please check your internet connection.',
+      UNAUTHORIZED: 'You are not authorized to perform this action.',
+      INSUFFICIENT_PERMISSIONS: 'You do not have sufficient permissions.',
+      VALIDATION_ERROR: 'Please check your input and try again.',
+      SERVER_ERROR: 'Server error occurred. Please try again later.',
+      UNKNOWN_ERROR: 'An unknown error occurred.',
+      PROCESS_NOT_FOUND: 'Process not found.',
+    };
+    
+    return ERROR_MESSAGES || defaultMessages;
+  }
+
+  // Safe method to get success messages
+  private getSuccessMessages() {
+    const defaultMessages = {
+      PROCESS_CREATED: 'Process created successfully.',
+      PROCESS_UPDATED: 'Process updated successfully.',
+      PROCESS_DELETED: 'Process deleted successfully.',
+      PROCESS_BATCH_CREATED: 'Process batch created successfully.',
+      PROCESS_BATCH_DELETED: 'Process batch deleted successfully.',
+      PROCESS_BATCH_ARCHIVED: 'Process batch archived successfully.',
+      PROCESS_BATCH_UNARCHIVED: 'Process batch unarchived successfully.',
+      ACTION_COMPLETED: 'Action completed successfully.',
+    };
+    
+    return SUCCESS_MESSAGES || defaultMessages;
   }
 
   // Getters
@@ -128,14 +178,20 @@ class ProcessManagementService {
     return { ...this.state.filters };
   }
 
-  // HTTP Client with auth headers
+  // Enhanced HTTP Client with auth headers and debugging
   private async apiCall<T>(
     endpoint: string, 
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${API_CONFIG.BASE_URL}${endpoint}`;
     
-    const defaultHeaders = ApiUtils.getAuthHeaders();
+    console.log('🌐 Making API call to:', url);
+    console.log('⚙️ Request options:', options);
+    
+    const defaultHeaders = {
+      'Content-Type': 'application/json',
+      ...ApiUtils.getAuthHeaders()
+    };
 
     const config: RequestInit = {
       ...options,
@@ -145,28 +201,91 @@ class ProcessManagementService {
       }
     };
 
+    console.log('📋 Final request config:', {
+      url,
+      method: config.method || 'GET',
+      headers: config.headers
+    });
+
     try {
       const response = await fetch(url, config);
       
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+      
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+        const errorText = await response.text();
+        console.error('❌ Error response text:', errorText);
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { detail: errorText || 'Unknown error' };
+        }
+        
         throw new APIError(errorData.detail || `HTTP ${response.status}`, response.status);
       }
 
       // Handle no content responses
       if (response.status === 204) {
+        console.log('✅ No content response (204)');
         return {} as T;
       }
 
-      return await response.json();
+      const data = await response.json();
+      console.log('✅ Response data:', data);
+      return data;
     } catch (error) {
+      console.error('❌ Network/Fetch error:', error);
+      
       if (error instanceof APIError) {
         throw error;
       }
       
-      // Network errors
-      throw new APIError(ERROR_MESSAGES.NETWORK_ERROR);
+      // Check if it's a network error
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new APIError('Network error. Please check your internet connection and API server.');
+      }
+      
+      // Other fetch errors
+      throw new APIError(this.getErrorMessages().NETWORK_ERROR);
     }
+  }
+
+  // =============================================================================
+  // DEBUGGING & TESTING METHODS
+  // =============================================================================
+
+  public async testApiConnectivity(): Promise<boolean> {
+    try {
+      console.log('🧪 Testing API connectivity...');
+      
+      // Test basic stats endpoint first (we know this works)
+      const stats = await this.apiCall<ProcessManagementStats>(
+        API_ENDPOINTS.PROCESS_MANAGEMENT.STATS
+      );
+      console.log('✅ Stats test successful:', stats);
+      
+      // Test items endpoint
+      const items = await this.apiCall<ProcessManagementResponse[]>(
+        API_ENDPOINTS.PROCESS_MANAGEMENT.BASE
+      );
+      console.log('✅ Items test successful:', items);
+      
+      return true;
+    } catch (error) {
+      console.error('❌ API connectivity test failed:', error);
+      return false;
+    }
+  }
+
+  public debugConfiguration(): void {
+    console.log('🔍 API Configuration Debug:');
+    console.log('- Base URL:', API_CONFIG.BASE_URL);
+    console.log('- Process endpoints:', API_ENDPOINTS.PROCESS_MANAGEMENT);
+    console.log('- Auth headers:', ApiUtils.getAuthHeaders());
+    console.log('- Storage keys:', STORAGE_KEYS);
   }
 
   // =============================================================================
@@ -175,6 +294,7 @@ class ProcessManagementService {
 
   public async fetchItems(filters?: ProcessManagementFilters): Promise<ProcessManagementResponse[]> {
     try {
+      console.log('🔍 Starting fetchItems with filters:', filters);
       this.setLoading('items', true);
       this.clearError();
 
@@ -183,19 +303,30 @@ class ProcessManagementService {
         this.state.filters = { ...this.state.filters, ...filters };
       }
 
-      // Build query parameters
-      const queryParams: ProcessManagementQuery = {};
+      // Build query parameters manually for better debugging
+      const queryParams: Record<string, string> = {};
       if (this.state.filters.archive !== undefined) {
-        queryParams.archive = this.state.filters.archive;
+        queryParams.archive = this.state.filters.archive.toString();
       }
 
-      const endpoint = ApiUtils.buildUrl(API_ENDPOINTS.PROCESS_MANAGEMENT.BASE, queryParams);
+      // Construct URL manually to debug
+      let endpoint = API_ENDPOINTS.PROCESS_MANAGEMENT.BASE;
+      const params = new URLSearchParams(queryParams);
+      if (params.toString()) {
+        endpoint += `?${params.toString()}`;
+      }
+
+      console.log('🌐 Final endpoint URL:', `${API_CONFIG.BASE_URL}${endpoint}`);
+      console.log('🔑 Auth headers:', ApiUtils.getAuthHeaders());
+
       const items = await this.apiCall<ProcessManagementResponse[]>(endpoint);
 
-      this.state.items = items;
+      console.log('✅ fetchItems success:', items);
+      this.state.items = items || []; // Ensure it's always an array
       this.notifyListeners();
-      return items;
+      return items || [];
     } catch (error) {
+      console.error('❌ fetchItems error details:', error);
       const processError = this.handleError(error);
       this.setError(processError);
       throw new Error(processError.message);
@@ -206,6 +337,7 @@ class ProcessManagementService {
 
   public async createItem(data: ProcessManagementCreate): Promise<ProcessManagementResponse> {
     try {
+      console.log('🚀 Creating process management item:', data);
       this.setLoading('creating', true);
       this.clearError();
 
@@ -221,8 +353,10 @@ class ProcessManagementService {
       this.state.items.unshift(response);
       this.notifyListeners();
 
+      console.log('✅ Process management item created:', response);
       return response;
     } catch (error) {
+      console.error('❌ Failed to create process management item:', error);
       const processError = this.handleError(error);
       this.setError(processError);
       throw new Error(processError.message);
@@ -233,6 +367,7 @@ class ProcessManagementService {
 
   public async updateItem(id: number, data: ProcessManagementUpdate): Promise<ProcessManagementResponse> {
     try {
+      console.log('🔄 Updating process management item:', id, data);
       this.setLoading('updating', true);
       this.clearError();
 
@@ -251,8 +386,10 @@ class ProcessManagementService {
         this.notifyListeners();
       }
 
+      console.log('✅ Process management item updated:', response);
       return response;
     } catch (error) {
+      console.error('❌ Failed to update process management item:', error);
       const processError = this.handleError(error);
       this.setError(processError);
       throw new Error(processError.message);
@@ -263,6 +400,7 @@ class ProcessManagementService {
 
   public async deleteItem(id: number): Promise<void> {
     try {
+      console.log('🗑️ Deleting process management item:', id);
       this.setLoading('deleting', true);
       this.clearError();
 
@@ -276,7 +414,10 @@ class ProcessManagementService {
       // Remove from local state
       this.state.items = this.state.items.filter(item => item.id !== id);
       this.notifyListeners();
+
+      console.log('✅ Process management item deleted:', id);
     } catch (error) {
+      console.error('❌ Failed to delete process management item:', error);
       const processError = this.handleError(error);
       this.setError(processError);
       throw new Error(processError.message);
@@ -291,6 +432,7 @@ class ProcessManagementService {
 
   public async fetchBatches(): Promise<ProcessBatchSummaryResponse[]> {
     try {
+      console.log('📦 Fetching process batches...');
       this.setLoading('batches', true);
       this.clearError();
 
@@ -298,10 +440,13 @@ class ProcessManagementService {
         API_ENDPOINTS.PROCESS_MANAGEMENT.BATCHES
       );
 
-      this.state.batches = batches;
+      this.state.batches = batches || [];
       this.notifyListeners();
-      return batches;
+      
+      console.log('✅ Process batches fetched:', batches);
+      return batches || [];
     } catch (error) {
+      console.error('❌ Failed to fetch process batches:', error);
       const processError = this.handleError(error);
       this.setError(processError);
       throw new Error(processError.message);
@@ -312,6 +457,7 @@ class ProcessManagementService {
 
   public async fetchBatchDetails(batchNumber: string): Promise<ProcessBatchSummary> {
     try {
+      console.log('🔍 Fetching batch details for:', batchNumber);
       this.setLoading('items', true);
       this.clearError();
 
@@ -319,8 +465,10 @@ class ProcessManagementService {
         API_ENDPOINTS.PROCESS_MANAGEMENT.BATCH_DETAILS(batchNumber)
       );
 
+      console.log('✅ Batch details fetched:', batchDetails);
       return batchDetails;
     } catch (error) {
+      console.error('❌ Failed to fetch batch details:', error);
       const processError = this.handleError(error);
       this.setError(processError);
       throw new Error(processError.message);
@@ -331,12 +479,16 @@ class ProcessManagementService {
 
   public async getNextBatchNumber(): Promise<string> {
     try {
+      console.log('🔢 Getting next batch number...');
+      
       const response = await this.apiCall<NextProcessBatchNumber>(
         API_ENDPOINTS.PROCESS_MANAGEMENT.NEXT_BATCH_NUMBER
       );
 
+      console.log('✅ Next batch number:', response.next_process_batch_number);
       return response.next_process_batch_number;
     } catch (error) {
+      console.error('❌ Failed to get next batch number:', error);
       const processError = this.handleError(error);
       this.setError(processError);
       throw new Error(processError.message);
@@ -345,6 +497,7 @@ class ProcessManagementService {
 
   public async createBatch(data: BatchProcessCreate): Promise<ProcessBatchResponse> {
     try {
+      console.log('🚀 Creating process batch:', data);
       this.setLoading('creating', true);
       this.clearError();
 
@@ -360,8 +513,10 @@ class ProcessManagementService {
       this.state.items.unshift(...response.items);
       this.notifyListeners();
 
+      console.log('✅ Process batch created:', response);
       return response;
     } catch (error) {
+      console.error('❌ Failed to create process batch:', error);
       const processError = this.handleError(error);
       this.setError(processError);
       throw new Error(processError.message);
@@ -372,6 +527,7 @@ class ProcessManagementService {
 
   public async deleteBatch(batchNumber: string): Promise<void> {
     try {
+      console.log('🗑️ Deleting process batch:', batchNumber);
       this.setLoading('deleting', true);
       this.clearError();
 
@@ -390,7 +546,10 @@ class ProcessManagementService {
         batch => batch.process_batch_number !== batchNumber
       );
       this.notifyListeners();
+
+      console.log('✅ Process batch deleted:', batchNumber);
     } catch (error) {
+      console.error('❌ Failed to delete process batch:', error);
       const processError = this.handleError(error);
       this.setError(processError);
       throw new Error(processError.message);
@@ -401,6 +560,7 @@ class ProcessManagementService {
 
   public async archiveBatch(batchNumber: string): Promise<void> {
     try {
+      console.log('📥 Archiving process batch:', batchNumber);
       this.setLoading('archiving', true);
       this.clearError();
 
@@ -419,7 +579,10 @@ class ProcessManagementService {
         return item;
       });
       this.notifyListeners();
+
+      console.log('✅ Process batch archived:', batchNumber);
     } catch (error) {
+      console.error('❌ Failed to archive process batch:', error);
       const processError = this.handleError(error);
       this.setError(processError);
       throw new Error(processError.message);
@@ -430,6 +593,7 @@ class ProcessManagementService {
 
   public async setBatchArchiveStatus(batchNumber: string, archive: boolean): Promise<void> {
     try {
+      console.log('📥 Setting batch archive status:', batchNumber, archive);
       this.setLoading('archiving', true);
       this.clearError();
 
@@ -456,7 +620,10 @@ class ProcessManagementService {
         return item;
       });
       this.notifyListeners();
+
+      console.log('✅ Batch archive status set:', batchNumber, archive);
     } catch (error) {
+      console.error('❌ Failed to set batch archive status:', error);
       const processError = this.handleError(error);
       this.setError(processError);
       throw new Error(processError.message);
@@ -471,6 +638,7 @@ class ProcessManagementService {
 
   public async fetchStats(): Promise<ProcessManagementStats> {
     try {
+      console.log('📊 Fetching process management stats...');
       this.setLoading('stats', true);
       this.clearError();
 
@@ -480,8 +648,11 @@ class ProcessManagementService {
 
       this.state.stats = stats;
       this.notifyListeners();
+      
+      console.log('✅ Process management stats fetched:', stats);
       return stats;
     } catch (error) {
+      console.error('❌ Failed to fetch process management stats:', error);
       const processError = this.handleError(error);
       this.setError(processError);
       throw new Error(processError.message);
@@ -495,16 +666,19 @@ class ProcessManagementService {
   // =============================================================================
 
   public setFilters(filters: Partial<ProcessManagementFilters>): void {
+    console.log('🔍 Setting filters:', filters);
     this.state.filters = { ...this.state.filters, ...filters };
     this.notifyListeners();
   }
 
   public clearFilters(): void {
+    console.log('🔍 Clearing filters');
     this.state.filters = {};
     this.notifyListeners();
   }
 
   public async applyFilters(filters: ProcessManagementFilters): Promise<void> {
+    console.log('🔍 Applying filters:', filters);
     this.setFilters(filters);
     await this.fetchItems();
   }
@@ -515,18 +689,20 @@ class ProcessManagementService {
 
   public async refreshData(): Promise<void> {
     try {
+      console.log('🔄 Refreshing all process management data...');
       await Promise.all([
         this.fetchItems(),
         this.fetchBatches(),
         this.fetchStats()
       ]);
+      console.log('✅ All process management data refreshed');
     } catch (error) {
-      // Individual errors are already handled by each method
-      console.error('Error refreshing process management data:', error);
+      console.error('❌ Error refreshing process management data:', error);
     }
   }
 
   public clearData(): void {
+    console.log('🧹 Clearing all process management data');
     this.state = {
       items: [],
       batches: [],
@@ -546,58 +722,80 @@ class ProcessManagementService {
     this.notifyListeners();
   }
 
-  // Handle process management errors
+  // Enhanced error handling with detailed logging
   private handleError(error: unknown): ProcessManagementError {
+    console.log('🔍 Handling error:', error);
+    
+    const httpStatus = this.getHttpStatus();
+    const errorMessages = this.getErrorMessages();
+    
     if (error instanceof APIError) {
       switch (error.status_code) {
-        case HTTP_STATUS.UNAUTHORIZED:
+        case httpStatus.UNAUTHORIZED:
           return {
             code: 'UNAUTHORIZED',
-            message: ERROR_MESSAGES.UNAUTHORIZED
+            message: errorMessages.UNAUTHORIZED,
+            details: { status: error.status_code }
           };
-        case HTTP_STATUS.FORBIDDEN:
+        case httpStatus.FORBIDDEN:
           return {
             code: 'FORBIDDEN',
-            message: ERROR_MESSAGES.INSUFFICIENT_PERMISSIONS
+            message: errorMessages.INSUFFICIENT_PERMISSIONS,
+            details: { status: error.status_code }
           };
-        case HTTP_STATUS.NOT_FOUND:
+        case httpStatus.NOT_FOUND:
           return {
             code: 'NOT_FOUND',
-            message: ERROR_MESSAGES.PROCESS_NOT_FOUND
+            message: 'Process management endpoint not found. Please check API configuration.',
+            details: { status: error.status_code }
           };
-        case HTTP_STATUS.CONFLICT:
+        case httpStatus.CONFLICT:
           return {
             code: 'CONFLICT',
-            message: 'Process management conflict occurred'
+            message: 'Process management conflict occurred',
+            details: { status: error.status_code }
           };
-        case HTTP_STATUS.UNPROCESSABLE_ENTITY:
+        case httpStatus.UNPROCESSABLE_ENTITY:
           return {
             code: 'VALIDATION_ERROR',
-            message: ERROR_MESSAGES.VALIDATION_ERROR
+            message: errorMessages.VALIDATION_ERROR,
+            details: { status: error.status_code }
           };
-        case HTTP_STATUS.SERVICE_UNAVAILABLE:
+        case httpStatus.SERVICE_UNAVAILABLE:
           return {
             code: 'SERVICE_UNAVAILABLE',
-            message: ERROR_MESSAGES.SERVER_ERROR
+            message: errorMessages.SERVER_ERROR,
+            details: { status: error.status_code }
           };
         default:
           return {
             code: 'API_ERROR',
-            message: error.message || ERROR_MESSAGES.SERVER_ERROR
+            message: error.message || errorMessages.SERVER_ERROR,
+            details: { status: error.status_code }
           };
       }
+    }
+
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      return {
+        code: 'NETWORK_ERROR',
+        message: 'Network connection failed. Please check if the API server is running and accessible.',
+        details: { originalError: error.message }
+      };
     }
 
     if (error instanceof Error) {
       return {
         code: 'UNKNOWN_ERROR',
-        message: error.message
+        message: error.message,
+        details: { originalError: error.message }
       };
     }
 
     return {
       code: 'UNKNOWN_ERROR',
-      message: ERROR_MESSAGES.UNKNOWN_ERROR
+      message: errorMessages.UNKNOWN_ERROR,
+      details: { originalError: String(error) }
     };
   }
 
@@ -613,39 +811,45 @@ class ProcessManagementService {
     const currentError = error || this.state.error;
     if (!currentError) return '';
 
+    const errorMessages = this.getErrorMessages();
+
     switch (currentError.code) {
       case 'UNAUTHORIZED':
-        return ERROR_MESSAGES.UNAUTHORIZED;
+        return errorMessages.UNAUTHORIZED;
       case 'FORBIDDEN':
-        return ERROR_MESSAGES.INSUFFICIENT_PERMISSIONS;
+        return errorMessages.INSUFFICIENT_PERMISSIONS;
       case 'NOT_FOUND':
-        return ERROR_MESSAGES.PROCESS_NOT_FOUND;
+        return 'Process management endpoint not found';
       case 'VALIDATION_ERROR':
-        return ERROR_MESSAGES.VALIDATION_ERROR;
+        return errorMessages.VALIDATION_ERROR;
+      case 'NETWORK_ERROR':
+        return 'Network connection failed. Please check your internet connection.';
       default:
-        return currentError.message || ERROR_MESSAGES.UNKNOWN_ERROR;
+        return currentError.message || errorMessages.UNKNOWN_ERROR;
     }
   }
 
   // Get success message for UI
   public getSuccessMessage(action: string): string {
+    const successMessages = this.getSuccessMessages();
+    
     switch (action) {
       case 'create':
-        return SUCCESS_MESSAGES.PROCESS_CREATED;
+        return successMessages.PROCESS_CREATED;
       case 'update':
-        return SUCCESS_MESSAGES.PROCESS_UPDATED;
+        return successMessages.PROCESS_UPDATED;
       case 'delete':
-        return SUCCESS_MESSAGES.PROCESS_DELETED;
+        return successMessages.PROCESS_DELETED;
       case 'batch_create':
-        return SUCCESS_MESSAGES.PROCESS_BATCH_CREATED;
+        return successMessages.PROCESS_BATCH_CREATED;
       case 'batch_delete':
-        return SUCCESS_MESSAGES.PROCESS_BATCH_DELETED;
+        return successMessages.PROCESS_BATCH_DELETED;
       case 'batch_archive':
-        return SUCCESS_MESSAGES.PROCESS_BATCH_ARCHIVED;
+        return successMessages.PROCESS_BATCH_ARCHIVED;
       case 'batch_unarchive':
-        return SUCCESS_MESSAGES.PROCESS_BATCH_UNARCHIVED;
+        return successMessages.PROCESS_BATCH_UNARCHIVED;
       default:
-        return SUCCESS_MESSAGES.ACTION_COMPLETED;
+        return successMessages.ACTION_COMPLETED;
     }
   }
 }
