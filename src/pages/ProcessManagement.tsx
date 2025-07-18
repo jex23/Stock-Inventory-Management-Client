@@ -1,626 +1,581 @@
 import React, { useState, useEffect } from 'react';
 import { processManagementService } from '../services/processManagementService';
 import { authService } from '../services/authService';
-import BatchProcessUpload from '../pages/BatchProcessUpload';
+import BatchProcessUpload from './BatchProcessUpload';
 import type { 
   ProcessManagementResponse,
-  ProcessBatchSummaryResponse,
   ProcessManagementStats,
+  ProcessBatchSummaryResponse,
   ProcessManagementFilters,
   ProcessManagementLoadingState,
   ProcessManagementError
 } from '../types/processManagement';
-import { PROCESS_STAGES } from '../types/processManagement';
 import './ProcessManagement.css';
 
-interface ProcessManagementState {
-  items: ProcessManagementResponse[];
-  batches: ProcessBatchSummaryResponse[];
-  stats: ProcessManagementStats | null;
-  loading: ProcessManagementLoadingState;
-  error: ProcessManagementError | null;
-  filters: ProcessManagementFilters;
+interface ProcessManagementProps {
+  // Add any props if needed
 }
 
-const ProcessManagement: React.FC = () => {
-  const [state, setState] = useState<ProcessManagementState>({
-    items: [],
-    batches: [],
-    stats: null,
-    loading: {
-      items: false,
-      stats: false,
-      batches: false,
-      creating: false,
-      updating: false,
-      deleting: false,
-      archiving: false,
-    },
-    error: null,
-    filters: {}
-  });
-
+const ProcessManagement: React.FC<ProcessManagementProps> = () => {
+  const [activeTab, setActiveTab] = useState<'items' | 'batches' | 'analytics'>('items');
   const [showBatchUpload, setShowBatchUpload] = useState(false);
-  const [selectedBatch, setSelectedBatch] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'active' | 'archived' | 'all'>('active');
-  const [debugMode, setDebugMode] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<number[]>([]);
+  const [filters, setFilters] = useState<ProcessManagementFilters>({});
+  
+  // Service state
+  const [items, setItems] = useState<ProcessManagementResponse[]>([]);
+  const [batches, setBatches] = useState<ProcessBatchSummaryResponse[]>([]);
+  const [stats, setStats] = useState<ProcessManagementStats | null>(null);
+  const [loading, setLoading] = useState<ProcessManagementLoadingState>({
+    items: false,
+    stats: false,
+    batches: false,
+    creating: false,
+    updating: false,
+    deleting: false,
+    archiving: false,
+    validating: false,
+    consolidation: false,
+  });
+  const [error, setError] = useState<ProcessManagementError | null>(null);
+
+  const currentUser = authService.getUser();
 
   useEffect(() => {
-    console.log('🚀 ProcessManagement component mounted');
-    
-    // Debug API configuration on mount
-    if (process.env.NODE_ENV === 'development') {
-      processManagementService.debugConfiguration();
-    }
-
     // Subscribe to service state changes
-    const unsubscribe = processManagementService.subscribe((serviceState) => {
-      console.log('🔄 Service state updated:', serviceState);
-      setState(serviceState);
+    const unsubscribe = processManagementService.subscribe((state) => {
+      setItems(state.items);
+      setBatches(state.batches);
+      setStats(state.stats);
+      setLoading(state.loading);
+      setError(state.error);
     });
 
     // Load initial data
-    loadInitialData();
+    loadData();
 
-    return () => {
-      console.log('🧹 ProcessManagement component unmounting');
-      unsubscribe();
-    };
+    return unsubscribe;
   }, []);
 
-  const loadInitialData = async () => {
+  const loadData = async () => {
     try {
-      console.log('📋 Loading initial process management data...');
-      
-      // Load each endpoint separately to identify which one fails
-      const loadPromises = [];
-
-      // Load stats
-      try {
-        console.log('📊 Loading stats...');
-        loadPromises.push(
-          processManagementService.fetchStats()
-            .then(() => console.log('✅ Stats loaded successfully'))
-            .catch(error => console.error('❌ Failed to load stats:', error))
-        );
-      } catch (error) {
-        console.error('❌ Error setting up stats loading:', error);
-      }
-
-      // Load batches
-      try {
-        console.log('📦 Loading batches...');
-        loadPromises.push(
-          processManagementService.fetchBatches()
-            .then(() => console.log('✅ Batches loaded successfully'))
-            .catch(error => console.error('❌ Failed to load batches:', error))
-        );
-      } catch (error) {
-        console.error('❌ Error setting up batches loading:', error);
-      }
-
-      // Load items
-      try {
-        console.log('📋 Loading items...');
-        const filters = { 
-          archive: viewMode === 'archived' ? true : viewMode === 'active' ? false : undefined 
-        };
-        console.log('🔍 Using filters:', filters);
-        
-        loadPromises.push(
-          processManagementService.fetchItems(filters)
-            .then(() => console.log('✅ Items loaded successfully'))
-            .catch(error => {
-              console.error('❌ Failed to load items:', error);
-              // Don't rethrow here, let the component handle the error display
-            })
-        );
-      } catch (error) {
-        console.error('❌ Error setting up items loading:', error);
-      }
-
-      // Wait for all promises to settle (not fail fast)
-      await Promise.allSettled(loadPromises);
-      console.log('📋 Initial data loading completed');
-
+      await processManagementService.refreshData();
     } catch (error) {
       console.error('❌ Failed to load process management data:', error);
     }
   };
 
-  // Enhanced view mode change handler
-  const handleViewModeChange = async (mode: 'active' | 'archived' | 'all') => {
-    console.log('🔄 Changing view mode to:', mode);
-    setViewMode(mode);
-    
-    const filters: ProcessManagementFilters = {};
-    
-    if (mode === 'archived') {
-      filters.archive = true;
-    } else if (mode === 'active') {
-      filters.archive = false;
-    }
-    // For 'all' mode, don't set archive filter
-
-    console.log('🔍 Applying filters:', filters);
-
-    try {
-      await processManagementService.fetchItems(filters);
-      console.log('✅ View mode changed successfully');
-    } catch (error) {
-      console.error('❌ Failed to filter items:', error);
-      // Show user-friendly error message
-      processManagementService.setPublicError({
-        code: 'FILTER_ERROR',
-        message: 'Failed to filter processes. Please try again.'
-      });
-    }
+  const handleFilterChange = (newFilters: Partial<ProcessManagementFilters>) => {
+    const updatedFilters = { ...filters, ...newFilters };
+    setFilters(updatedFilters);
+    processManagementService.applyFilters(updatedFilters);
   };
 
-  const handleArchiveProcess = async (id: number) => {
+  const handleSelectItem = (itemId: number) => {
+    setSelectedItems(prev => 
+      prev.includes(itemId) 
+        ? prev.filter(id => id !== itemId)
+        : [...prev, itemId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    setSelectedItems(
+      selectedItems.length === items.length 
+        ? [] 
+        : items.map(item => item.id)
+    );
+  };
+
+  const handleArchiveSelected = async (archive: boolean) => {
+    if (selectedItems.length === 0) return;
+
     try {
-      console.log('📥 Archiving process:', id);
-      const item = state.items.find(i => i.id === id);
-      if (!item) {
-        console.warn('⚠️ Process item not found:', id);
-        return;
+      // Group by batch and archive entire batches
+      const batchGroups = new Map<string, number[]>();
+      
+      selectedItems.forEach(itemId => {
+        const item = items.find(i => i.id === itemId);
+        if (item?.process_id_batch) {
+          const existing = batchGroups.get(item.process_id_batch) || [];
+          existing.push(itemId);
+          batchGroups.set(item.process_id_batch, existing);
+        }
+      });
+
+      for (const [batchNumber] of batchGroups) {
+        await processManagementService.setBatchArchiveStatus(batchNumber, archive);
       }
 
-      await processManagementService.updateItem(id, { archive: !item.archive });
-      
-      // Refresh data
-      await loadInitialData();
-      console.log('✅ Process archived successfully');
+      setSelectedItems([]);
+      await loadData();
     } catch (error) {
-      console.error('❌ Failed to archive process:', error);
+      console.error('❌ Failed to archive items:', error);
     }
   };
 
-  const handleDeleteProcess = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this process?')) {
+  const handleDeleteBatch = async (batchNumber: string) => {
+    if (!window.confirm(`Are you sure you want to delete batch ${batchNumber}? This action cannot be undone.`)) {
       return;
     }
 
     try {
-      console.log('🗑️ Deleting process:', id);
-      await processManagementService.deleteItem(id);
-      console.log('✅ Process deleted successfully');
+      await processManagementService.deleteBatch(batchNumber);
+      await loadData();
     } catch (error) {
-      console.error('❌ Failed to delete process:', error);
+      console.error('❌ Failed to delete batch:', error);
     }
   };
 
-  const handleBatchAction = async (batchNumber: string, action: 'delete' | 'archive') => {
-    if (action === 'delete') {
-      if (!window.confirm(`Are you sure you want to delete batch ${batchNumber}?`)) {
-        return;
-      }
-      try {
-        console.log('🗑️ Deleting batch:', batchNumber);
-        await processManagementService.deleteBatch(batchNumber);
-        await loadInitialData();
-        console.log('✅ Batch deleted successfully');
-      } catch (error) {
-        console.error('❌ Failed to delete batch:', error);
-      }
-    } else if (action === 'archive') {
-      try {
-        console.log('📥 Archiving batch:', batchNumber);
-        await processManagementService.archiveBatch(batchNumber);
-        await loadInitialData();
-        console.log('✅ Batch archived successfully');
-      } catch (error) {
-        console.error('❌ Failed to archive batch:', error);
-      }
-    }
-  };
-
-  const handleBatchUploadSuccess = async () => {
-    console.log('✅ Batch upload successful, refreshing data...');
-    setShowBatchUpload(false);
-    await loadInitialData();
-  };
-
-  // Debug functions
- const debugApiConnectivity = async () => {
-  console.log('🧪 Starting API connectivity test...');
-  
-  try {
-    const isConnected = await processManagementService.testApiConnectivity();
-    if (isConnected) {
-      alert('✅ API connectivity test passed!');
-    } else {
-      alert('❌ API connectivity test failed. Check console for details.');
-    }
-  } catch (error) {
-    console.error('❌ Debug test failed:', error);
-    
-    // Fix: Properly handle unknown error type
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    alert(`❌ Debug test failed: ${errorMessage}`);
-  }
-};
-
-  const toggleDebugMode = () => {
-    setDebugMode(!debugMode);
-    console.log('🧪 Debug mode:', !debugMode ? 'ON' : 'OFF');
-  };
-
-  const handleClearError = () => {
-    console.log('🧹 Clearing error');
-    processManagementService.clearError();
-  };
-
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
       month: 'short',
       day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      year: 'numeric'
     });
   };
 
-  const getProgressPercentage = (stage: string) => {
-    // Mock progress calculation - in real app this would be based on actual process data
-    const stages = ['material_preparation', 'processing', 'quality_control', 'finishing', 'packaging', 'dispatch'];
-    const currentIndex = stages.indexOf(stage);
-    return currentIndex >= 0 ? ((currentIndex + 1) / stages.length) * 100 : 0;
+  const formatPieces = (pieces: number | null | undefined): string => {
+    return pieces?.toLocaleString() || 'N/A';
   };
 
-  const currentUser = authService.getUser();
-
-  if (!currentUser) {
+  const getStatusBadge = (archive: boolean) => {
     return (
-      <div className="process-container">
-        <div style={{ textAlign: 'center', padding: '20px' }}>
-          Please log in to access process management.
+      <span className={`status-badge ${archive ? 'archived' : 'active'}`}>
+        {archive ? 'Archived' : 'Active'}
+      </span>
+    );
+  };
+
+  const getStockStatus = (remainingPieces: number | null | undefined) => {
+    const pieces = remainingPieces ?? 0;
+    if (pieces <= 0) return { status: 'depleted', color: '#dc3545' };
+    if (pieces <= 10) return { status: 'low', color: '#fd7e14' };
+    return { status: 'available', color: '#28a745' };
+  };
+
+  // Stats Cards Component
+  const StatsCards = () => (
+    <div className="stats-cards">
+      <div className="stat-card">
+        <div className="stat-icon">📊</div>
+        <div className="stat-content">
+          <div className="stat-value">{stats?.total_processes || 0}</div>
+          <div className="stat-label">Total Processes</div>
         </div>
       </div>
-    );
-  }
+      <div className="stat-card">
+        <div className="stat-icon">✅</div>
+        <div className="stat-content">
+          <div className="stat-value">{stats?.active_processes || 0}</div>
+          <div className="stat-label">Active Processes</div>
+        </div>
+      </div>
+      <div className="stat-card">
+        <div className="stat-icon">📥</div>
+        <div className="stat-content">
+          <div className="stat-value">{stats?.archived_processes || 0}</div>
+          <div className="stat-label">Archived</div>
+        </div>
+      </div>
+      <div className="stat-card">
+        <div className="stat-icon">📦</div>
+        <div className="stat-content">
+          <div className="stat-value">{stats?.total_batches || 0}</div>
+          <div className="stat-label">Batches</div>
+        </div>
+      </div>
+    </div>
+  );
 
-  return (
-    <div className="process-container">
-      {/* Header */}
-      <div className="page-header">
-        <h1>Process Management</h1>
-        <div className="header-actions">
-          {/* Debug controls for development */}
-          {process.env.NODE_ENV === 'development' && (
-            <div style={{ display: 'flex', gap: '10px', marginRight: '10px' }}>
-              <button 
-                className="btn btn-secondary"
-                onClick={debugApiConnectivity}
-                title="Test API connectivity"
+  // Filters Component
+  const FiltersBar = () => (
+    <div className="filters-bar">
+      <div className="filter-group">
+        <label>Status:</label>
+        <select 
+          value={filters.archive !== undefined ? (filters.archive ? 'archived' : 'active') : 'all'}
+          onChange={(e) => {
+            const value = e.target.value;
+            handleFilterChange({
+              archive: value === 'all' ? undefined : value === 'archived'
+            });
+          }}
+        >
+          <option value="all">All</option>
+          <option value="active">Active</option>
+          <option value="archived">Archived</option>
+        </select>
+      </div>
+      
+      <div className="filter-actions">
+        <button
+          className="btn btn-secondary"
+          onClick={() => {
+            setFilters({});
+            processManagementService.clearFilters();
+          }}
+        >
+          Clear Filters
+        </button>
+        <button
+          className="btn btn-primary"
+          onClick={() => setShowBatchUpload(true)}
+          disabled={loading.creating}
+        >
+          + Create Batch
+        </button>
+      </div>
+    </div>
+  );
+
+  // Items Table Component
+  const ItemsTable = () => (
+    <div className="items-table-container">
+      <div className="table-header">
+        <div className="table-actions">
+          <label className="select-all">
+            <input
+              type="checkbox"
+              checked={selectedItems.length === items.length && items.length > 0}
+              onChange={handleSelectAll}
+            />
+            Select All ({selectedItems.length} selected)
+          </label>
+          
+          {selectedItems.length > 0 && (
+            <div className="bulk-actions">
+              <button
+                className="btn btn-warning btn-sm"
+                onClick={() => handleArchiveSelected(true)}
+                disabled={loading.archiving}
               >
-                🧪 Test API
+                Archive Selected
               </button>
-              <button 
-                className={`btn ${debugMode ? 'btn-warning' : 'btn-secondary'}`}
-                onClick={toggleDebugMode}
-                title="Toggle debug mode"
+              <button
+                className="btn btn-success btn-sm"
+                onClick={() => handleArchiveSelected(false)}
+                disabled={loading.archiving}
               >
-                🔍 Debug {debugMode ? 'ON' : 'OFF'}
+                Unarchive Selected
               </button>
             </div>
           )}
-          <button 
-            className="btn btn-primary"
-            onClick={() => setShowBatchUpload(true)}
-            disabled={state.loading.creating}
-          >
-            {state.loading.creating ? 'Creating...' : '+ New Batch Process'}
-          </button>
         </div>
       </div>
 
-      {/* Debug Information */}
-      {debugMode && (
-        <div style={{ 
-          backgroundColor: '#f0f8ff', 
-          border: '1px solid #add8e6', 
-          padding: '12px', 
-          borderRadius: '4px',
-          margin: '10px 0',
-          fontSize: '12px',
-          fontFamily: 'monospace'
-        }}>
-          <strong>🔍 Debug Info:</strong>
-          <pre style={{ margin: '8px 0' }}>
-            {JSON.stringify({
-              currentUser: currentUser?.username,
-              viewMode,
-              filters: state.filters,
-              loading: state.loading,
-              itemsCount: state.items.length,
-              batchesCount: state.batches.length,
-              hasStats: !!state.stats,
-              hasError: !!state.error
-            }, null, 2)}
-          </pre>
-        </div>
-      )}
-
-      {/* Enhanced Error Display */}
-      {state.error && (
-        <div style={{ 
-          backgroundColor: '#fee', 
-          border: '1px solid #fcc', 
-          padding: '12px', 
-          borderRadius: '4px',
-          margin: '10px 0',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start'
-        }}>
-          <div style={{ flex: 1 }}>
-            <strong>⚠️ {state.error.code}:</strong> {processManagementService.getErrorMessage(state.error)}
-            {state.error.details && debugMode && (
-              <details style={{ marginTop: '8px' }}>
-                <summary style={{ cursor: 'pointer', fontSize: '12px' }}>Show technical details</summary>
-                <pre style={{ fontSize: '11px', marginTop: '4px', backgroundColor: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
-                  {JSON.stringify(state.error.details, null, 2)}
-                </pre>
-              </details>
-            )}
-          </div>
-          <button 
-            onClick={handleClearError}
-            style={{ 
-              background: 'none', 
-              border: 'none', 
-              fontSize: '16px', 
-              cursor: 'pointer',
-              padding: '4px 8px',
-              marginLeft: '10px'
-            }}
-          >
-            ×
-          </button>
-        </div>
-      )}
-
-      {/* Loading States */}
-      {(state.loading.stats || state.loading.batches || state.loading.items) && (
-        <div style={{ 
-          backgroundColor: '#f0f8ff', 
-          border: '1px solid #add8e6', 
-          padding: '8px', 
-          borderRadius: '4px',
-          margin: '10px 0',
-          fontSize: '14px'
-        }}>
-          <span>🔄 Loading: </span>
-          {state.loading.stats && <span>Stats... </span>}
-          {state.loading.batches && <span>Batches... </span>}
-          {state.loading.items && <span>Items... </span>}
-        </div>
-      )}
-
-      {/* Statistics */}
-      <div className="process-stats">
-        <div className="stat-card">
-          <div className="stat-icon">📊</div>
-          <div className="stat-content">
-            <div className="stat-number">{state.stats?.total_processes || 0}</div>
-            <div className="stat-label">Total Processes</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon">▶️</div>
-          <div className="stat-content">
-            <div className="stat-number">{state.stats?.active_processes || 0}</div>
-            <div className="stat-label">Active Processes</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon">📦</div>
-          <div className="stat-content">
-            <div className="stat-number">{state.stats?.archived_processes || 0}</div>
-            <div className="stat-label">Archived</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon">🔄</div>
-          <div className="stat-content">
-            <div className="stat-number">{state.stats?.total_batches || 0}</div>
-            <div className="stat-label">Total Batches</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="process-content">
-        {/* Active Processes */}
-        <div className="active-processes">
-          <div className="section-header">
-            <h2>Manufacturing Processes</h2>
-            <div className="view-mode-toggle">
-              <button 
-                className={`toggle-btn ${viewMode === 'active' ? 'active' : ''}`}
-                onClick={() => handleViewModeChange('active')}
-              >
-                Active
-              </button>
-              <button 
-                className={`toggle-btn ${viewMode === 'archived' ? 'active' : ''}`}
-                onClick={() => handleViewModeChange('archived')}
-              >
-                Archived
-              </button>
-              <button 
-                className={`toggle-btn ${viewMode === 'all' ? 'active' : ''}`}
-                onClick={() => handleViewModeChange('all')}
-              >
-                All
-              </button>
-            </div>
-          </div>
-
-          <div className="process-list">
-            {state.loading.items ? (
-              <div className="loading-state">
-                <div className="spinner"></div>
-                <p>Loading processes...</p>
-              </div>
-            ) : state.items.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-icon">📋</div>
-                <h3>No processes found</h3>
-                <p>Create your first process batch to get started.</p>
-                <button 
-                  className="btn btn-primary"
-                  onClick={() => setShowBatchUpload(true)}
-                >
-                  Create Batch Process
-                </button>
-                {debugMode && (
-                  <div style={{ marginTop: '10px', fontSize: '12px', color: '#666' }}>
-                    Debug: {state.items.length} items, filters: {JSON.stringify(state.filters)}
-                  </div>
-                )}
-              </div>
+      <div className="table-responsive">
+        <table className="process-table">
+          <thead>
+            <tr>
+              <th>Select</th>
+              <th>ID</th>
+              <th>Batch</th>
+              <th>Stock</th>
+              <th>Product</th>
+              <th>Used</th>
+              <th>Remaining</th>
+              <th>Operator</th>
+              <th>Date</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading.items ? (
+              <tr>
+                <td colSpan={10} className="loading-row">
+                  <div className="spinner"></div>
+                  Loading...
+                </td>
+              </tr>
+            ) : items.length === 0 ? (
+              <tr>
+                <td colSpan={10} className="empty-row">
+                  No processes found
+                </td>
+              </tr>
             ) : (
-              state.items.map((process) => (
-                <div key={process.id} className="process-item">
-                  <div className="process-info">
-                    <h4>{process.finished_product_name || `Process ${process.id}`}</h4>
-                    <div className="process-id">
-                      {process.process_id_batch ? `Batch: ${process.process_id_batch}` : `ID: ${process.id}`}
-                    </div>
-                    {debugMode && (
-                      <div style={{ fontSize: '10px', color: '#666', marginBottom: '5px' }}>
-                        Debug: ID={process.id}, Stock={process.stock_id}, Archive={process.archive}
-                      </div>
-                    )}
-                    <div className="process-details">
-                      <span className="stage stage-processing">Processing</span>
-                      <span className="operator">👤 {process.user_name}</span>
-                      <span className="stock-info">📦 {process.stock_batch}</span>
-                    </div>
-                    <div className="process-progress">
-                      <div className="progress-header">
-                        <span className="progress-text">Progress</span>
-                        <span className="progress-percentage">75%</span>
-                      </div>
-                      <div className="progress-bar">
-                        <div 
-                          className="progress-fill" 
-                          style={{ width: '75%' }}
-                        ></div>
-                      </div>
-                    </div>
-                    <div className="process-meta">
-                      <span className="process-date">📅 {formatDate(process.manufactured_date)}</span>
-                      <span className={`process-status ${process.archive ? 'archived' : 'active'}`}>
-                        {process.archive ? 'Archived' : 'Active'}
+              items.map((item) => {
+                const stockStatus = getStockStatus(item.stock_remaining_pieces);
+                return (
+                  <tr key={item.id} className={selectedItems.includes(item.id) ? 'selected' : ''}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedItems.includes(item.id)}
+                        onChange={() => handleSelectItem(item.id)}
+                      />
+                    </td>
+                    <td>{item.id}</td>
+                    <td>
+                      <code>{item.process_id_batch || 'N/A'}</code>
+                    </td>
+                    <td>{item.stock_batch || 'N/A'}</td>
+                    <td>{item.finished_product_name || 'N/A'}</td>
+                    <td className="pieces-cell">
+                      <strong>{formatPieces(item.pieces_used)}</strong>
+                    </td>
+                    <td>
+                      <span 
+                        className="stock-pieces"
+                        style={{ color: stockStatus.color }}
+                        title={`Stock status: ${stockStatus.status}`}
+                      >
+                        {formatPieces(item.stock_remaining_pieces)}
                       </span>
+                    </td>
+                    <td>{item.user_name || 'Unknown'}</td>
+                    <td>{formatDate(item.manufactured_date)}</td>
+                    <td>{getStatusBadge(item.archive)}</td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  // Batches Table Component
+  const BatchesTable = () => (
+    <div className="batches-table-container">
+      <div className="table-responsive">
+        <table className="batches-table">
+          <thead>
+            <tr>
+              <th>Batch Number</th>
+              <th>Items</th>
+              <th>Date</th>
+              <th>Operator</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading.batches ? (
+              <tr>
+                <td colSpan={5} className="loading-row">
+                  <div className="spinner"></div>
+                  Loading...
+                </td>
+              </tr>
+            ) : batches.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="empty-row">
+                  No batches found
+                </td>
+              </tr>
+            ) : (
+              batches.map((batch) => (
+                <tr key={batch.process_batch_number}>
+                  <td>
+                    <code>{batch.process_batch_number}</code>
+                  </td>
+                  <td>{batch.total_items}</td>
+                  <td>{formatDate(batch.manufactured_date)}</td>
+                  <td>{batch.user_name}</td>
+                  <td>
+                    <div className="batch-actions">
+                      <button
+                        className="btn btn-danger btn-sm"
+                        onClick={() => handleDeleteBatch(batch.process_batch_number)}
+                        disabled={loading.deleting}
+                        title="Delete batch"
+                      >
+                        🗑️ Delete
+                      </button>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => processManagementService.archiveBatch(batch.process_batch_number)}
+                        disabled={loading.archiving}
+                        title="Archive/Unarchive batch"
+                      >
+                        📥 Archive
+                      </button>
                     </div>
-                  </div>
-                  <div className="process-actions">
-                    <button 
-                      className="action-btn edit"
-                      onClick={() => console.log('Edit process', process.id)}
-                      title="Edit Process"
-                    >
-                      ✏️
-                    </button>
-                    <button 
-                      className="action-btn archive"
-                      onClick={() => handleArchiveProcess(process.id)}
-                      title={process.archive ? 'Unarchive Process' : 'Archive Process'}
-                    >
-                      {process.archive ? '📤' : '📥'}
-                    </button>
-                    <button 
-                      className="action-btn delete"
-                      onClick={() => handleDeleteProcess(process.id)}
-                      title="Delete Process"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
+                  </td>
+                </tr>
               ))
             )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  // Analytics Component
+  const Analytics = () => {
+    const analytics = processManagementService.getAnalytics();
+    
+    useEffect(() => {
+      // Calculate analytics when tab becomes active
+      if (activeTab === 'analytics') {
+        processManagementService.calculatePieceAnalytics();
+      }
+    }, [activeTab]);
+
+    if (!analytics) {
+      return (
+        <div className="analytics-container">
+          <div className="empty-analytics">
+            <h3>No Data Available</h3>
+            <p>Analytics will appear once processing begins.</p>
           </div>
         </div>
+      );
+    }
 
-        {/* Process Overview */}
-        <div className="process-overview">
-          <h2>Process Flow</h2>
-          <div className="flow-stages">
-            {PROCESS_STAGES.map((stage, index) => (
-              <React.Fragment key={stage.id}>
-                <div className={`flow-stage ${index <= 2 ? 'active' : ''}`}>
-                  <div className="stage-icon">{stage.icon}</div>
-                  <span>{stage.name}</span>
-                </div>
-                {index < PROCESS_STAGES.length - 1 && (
-                  <div className="flow-arrow">↓</div>
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-
-          {/* Batch Summary */}
-          <div className="batch-summary">
-            <h3>Recent Batches</h3>
-            <div className="batch-list">
-              {state.loading.batches ? (
-                <div className="loading-spinner">Loading batches...</div>
-              ) : state.batches.slice(0, 5).map((batch) => (
-                <div key={batch.process_batch_number} className="batch-item">
-                  <div className="batch-info">
-                    <div className="batch-number">{batch.process_batch_number}</div>
-                    <div className="batch-details">
-                      <span>{batch.total_items} items</span>
-                      <span>👤 {batch.user_name}</span>
-                    </div>
-                    <div className="batch-date">{formatDate(batch.manufactured_date)}</div>
-                    {debugMode && (
-                      <div style={{ fontSize: '10px', color: '#666' }}>
-                        Debug: {batch.process_batch_number}
-                      </div>
-                    )}
-                  </div>
-                  <div className="batch-actions">
-                    <button 
-                      className="action-btn view"
-                      onClick={() => setSelectedBatch(batch.process_batch_number)}
-                      title="View Batch"
-                    >
-                      👁️
-                    </button>
-                    <button 
-                      className="action-btn archive"
-                      onClick={() => handleBatchAction(batch.process_batch_number, 'archive')}
-                      title="Archive Batch"
-                    >
-                      📥
-                    </button>
-                    <button 
-                      className="action-btn delete"
-                      onClick={() => handleBatchAction(batch.process_batch_number, 'delete')}
-                      title="Delete Batch"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-              ))}
+    return (
+      <div className="analytics-container">
+        <div className="analytics-cards">
+          <div className="analytics-card">
+            <h4>Total Pieces Consumed</h4>
+            <div className="analytics-value">
+              {analytics.total_pieces_consumed?.toLocaleString() || 0}
             </div>
           </div>
+          
+          <div className="analytics-card">
+            <h4>Average Pieces per Process</h4>
+            <div className="analytics-value">
+              {analytics.average_pieces_per_process || 0}
+            </div>
+          </div>
+          
+          <div className="analytics-card">
+            <h4>Most Efficient Stock</h4>
+            <div className="analytics-value">
+              {analytics.most_efficient_stock?.stock_batch || 'None'}
+            </div>
+            {analytics.most_efficient_stock?.efficiency_ratio && (
+              <div className="analytics-detail">
+                {analytics.most_efficient_stock.efficiency_ratio.toFixed(2)} pieces/process
+              </div>
+            )}
+          </div>
         </div>
+
+        {analytics.piece_consumption_by_product && analytics.piece_consumption_by_product.length > 0 && (
+          <div className="consumption-table">
+            <h4>Piece Consumption by Product</h4>
+            <table className="analytics-table">
+              <thead>
+                <tr>
+                  <th>Product Category</th>
+                  <th>Total Pieces</th>
+                  <th>Process Count</th>
+                  <th>Avg Pieces/Process</th>
+                </tr>
+              </thead>
+              <tbody>
+                {analytics.piece_consumption_by_product.map((product, index) => (
+                  <tr key={index}>
+                    <td>{product.product_name}</td>
+                    <td>{product.total_pieces.toLocaleString()}</td>
+                    <td>{product.process_count}</td>
+                    <td>{(product.total_pieces / product.process_count).toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="process-management">
+      <div className="page-header">
+        <div className="header-content">
+          <h1>Process Management</h1>
+          <p>Track manufacturing processes and inventory consumption</p>
+        </div>
+        
+        {currentUser && (
+          <div className="user-info">
+            <span>👤 {currentUser.first_name} {currentUser.last_name}</span>
+            <span className="user-role">({currentUser.position})</span>
+          </div>
+        )}
+      </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="error-banner">
+          <div className="error-content">
+            <span className="error-icon">⚠️</span>
+            <span className="error-message">
+              {processManagementService.getErrorMessage(error)}
+            </span>
+            <button 
+              className="error-close"
+              onClick={() => processManagementService.clearError()}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Stats Cards */}
+      <StatsCards />
+
+      {/* Navigation Tabs */}
+      <div className="tab-navigation">
+        <button
+          className={`tab ${activeTab === 'items' ? 'active' : ''}`}
+          onClick={() => setActiveTab('items')}
+        >
+          Process Items ({items.length})
+        </button>
+        <button
+          className={`tab ${activeTab === 'batches' ? 'active' : ''}`}
+          onClick={() => setActiveTab('batches')}
+        >
+          Batches ({batches.length})
+        </button>
+        <button
+          className={`tab ${activeTab === 'analytics' ? 'active' : ''}`}
+          onClick={() => setActiveTab('analytics')}
+        >
+          Analytics
+        </button>
+      </div>
+
+      {/* Filters */}
+      {activeTab === 'items' && <FiltersBar />}
+
+      {/* Content */}
+      <div className="tab-content">
+        {activeTab === 'items' && <ItemsTable />}
+        {activeTab === 'batches' && <BatchesTable />}
+        {activeTab === 'analytics' && <Analytics />}
       </div>
 
       {/* Batch Upload Modal */}
       {showBatchUpload && (
         <BatchProcessUpload
-          onSuccess={handleBatchUploadSuccess}
+          onSuccess={() => {
+            setShowBatchUpload(false);
+            loadData();
+          }}
           onCancel={() => setShowBatchUpload(false)}
         />
+      )}
+
+      {/* Loading Overlay */}
+      {(loading.creating || loading.deleting || loading.archiving) && (
+        <div className="loading-overlay">
+          <div className="loading-content">
+            <div className="spinner"></div>
+            <p>
+              {loading.creating && 'Creating process...'}
+              {loading.deleting && 'Deleting batch...'}
+              {loading.archiving && 'Updating status...'}
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );

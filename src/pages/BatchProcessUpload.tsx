@@ -4,17 +4,16 @@ import { authService } from '../services/authService';
 import type { 
   BatchProcessCreate,
   BatchProcessItem,
-  ProcessFormErrors
+  ProcessFormErrors,
+  BatchValidationResult,
+  PieceValidation
 } from '../types/processManagement';
-import { API_CONFIG, ApiUtils } from '../constants/api'; // Import your API configuration
+import { API_CONFIG, ApiUtils } from '../constants/api';
 import './BatchProcessUpload.css';
 
-interface Product {
+interface FinishedProductCategory {
   id: number;
   name: string;
-  price: number | string; // API might return string
-  unit: string;
-  quantity: number | string; // API might return string
 }
 
 interface Stock {
@@ -31,7 +30,7 @@ interface Stock {
   updated_at: string;
   product_name?: string;
   product_unit?: string;
-  product_quantity?: number | string; // API might return string
+  product_quantity?: number | string;
   supplier_name?: string;
   user_name?: string;
 }
@@ -46,16 +45,22 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
   onCancel
 }) => {
   const [formData, setFormData] = useState<BatchProcessCreate>({
-    items: [{ stock_id: 0, finished_product_id: 0 }],
+    items: [{ 
+      stock_id: 0, 
+      finished_product_id: 0, 
+      pieces_to_use: 1  // 🆕 Default pieces
+    }],
     users_id: undefined
   });
 
-  const [products, setProducts] = useState<Product[]>([]);
+  const [finishedProductCategories, setFinishedProductCategories] = useState<FinishedProductCategory[]>([]);
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [nextBatchNumber, setNextBatchNumber] = useState<string>('');
+  const [validation, setValidation] = useState<BatchValidationResult | null>(null);  // 🆕 Piece validation
   const [loading, setLoading] = useState({
     data: false,
-    submitting: false
+    submitting: false,
+    validating: false  // 🆕 Validation loading state
   });
   const [errors, setErrors] = useState<ProcessFormErrors>({});
 
@@ -76,28 +81,37 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
     loadInitialData();
   }, []);
 
+  // 🆕 Validate pieces whenever form data changes
+  useEffect(() => {
+    if (formData.items.length > 0 && formData.items.some(item => item.stock_id > 0)) {
+      validatePieces();
+    }
+  }, [formData.items]);
+
   const loadInitialData = async () => {
     setLoading(prev => ({ ...prev, data: true }));
     
     try {
       console.log('🔄 Loading initial data for batch upload...');
       
-      // Load products, stocks, and next batch number
-      const [productsResponse, stocksResponse, batchNumber] = await Promise.all([
-        fetchProducts(),
+      const [categoriesResponse, stocksResponse, batchNumber] = await Promise.all([
+        fetchFinishedProductCategories(),
         fetchStocks(),
         processManagementService.getNextBatchNumber()
       ]);
 
       console.log('✅ Initial data loaded:', { 
-        products: productsResponse.length, 
+        categories: categoriesResponse.length,
         stocks: stocksResponse.length, 
         batchNumber 
       });
 
-      setProducts(productsResponse);
+      setFinishedProductCategories(categoriesResponse);
       setStocks(stocksResponse);
       setNextBatchNumber(batchNumber);
+
+      // 🆕 Load stock groups for validation
+      await processManagementService.fetchStockGroups(1);
     } catch (error) {
       console.error('❌ Failed to load initial data:', error);
       setErrors({ general: `Failed to load required data: ${getErrorMessage(error)}` });
@@ -106,62 +120,52 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
     }
   };
 
-  // Fixed API calls to match your actual API endpoints
-  const fetchProducts = async (): Promise<Product[]> => {
+  const fetchFinishedProductCategories = async (): Promise<FinishedProductCategory[]> => {
     try {
-      console.log('📦 Fetching products...');
+      console.log('📦 Fetching finished product categories...');
       
-      const url = `${API_CONFIG.BASE_URL}/products`;
-      console.log('🌐 Products URL:', url);
+      const url = `${API_CONFIG.BASE_URL}/categories`;
+      console.log('🌐 Categories URL:', url);
       
       const response = await fetch(url, {
         method: 'GET',
-        headers: ApiUtils.getAuthHeaders() // Use your existing auth method
+        headers: ApiUtils.getAuthHeaders()
       });
       
-      console.log('📡 Products response status:', response.status);
+      console.log('📡 Categories response status:', response.status);
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Products error response:', errorText);
-        throw new Error(`Failed to fetch products: ${response.status} ${response.statusText}`);
+        console.error('❌ Categories error response:', errorText);
+        throw new Error(`Failed to fetch finished product categories: ${response.status} ${response.statusText}`);
       }
       
       const data = await response.json();
       
-      // Validate and clean the data
       if (!Array.isArray(data)) {
-        console.error('❌ Products data is not an array:', typeof data);
-        throw new Error('Invalid products data format received from server');
+        console.error('❌ Categories data is not an array:', typeof data);
+        throw new Error('Invalid categories data format received from server');
       }
       
-      // Clean and validate each product
-      const cleanedProducts = data.map((product: any, index: number) => {
+      const cleanedCategories = data.map((category: any, index: number) => {
         try {
           return {
-            id: Number(product.id) || 0,
-            name: String(product.name || `Product ${index + 1}`),
-            price: product.price, // Keep original type, will be handled by safeParsePrice
-            unit: String(product.unit || 'pcs'),
-            quantity: product.quantity // Keep original type, will be handled by safeParseQuantity
+            id: Number(category.id) || 0,
+            name: String(category.name || `Category ${index + 1}`)
           };
         } catch (error) {
-          console.warn(`⚠️ Error cleaning product at index ${index}:`, error);
+          console.warn(`⚠️ Error cleaning category at index ${index}:`, error);
           return {
             id: index + 1,
-            name: `Product ${index + 1}`,
-            price: 0,
-            unit: 'pcs',
-            quantity: 0
+            name: `Category ${index + 1}`
           };
         }
       });
       
-      console.log('✅ Products fetched and cleaned:', cleanedProducts.length, 'items');
-      console.log('📋 Sample product:', cleanedProducts[0]);
-      return cleanedProducts;
+      console.log('✅ Categories fetched and cleaned:', cleanedCategories.length, 'items');
+      return cleanedCategories;
     } catch (error) {
-      console.error('❌ Error fetching products:', error);
+      console.error('❌ Error fetching categories:', error);
       throw error;
     }
   };
@@ -170,7 +174,6 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
     try {
       console.log('📦 Fetching stocks...');
       
-      // Build URL with query parameters to match your API
       const params = new URLSearchParams({
         archive: 'false',
         used: 'false'
@@ -180,7 +183,7 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
       
       const response = await fetch(url, {
         method: 'GET',
-        headers: ApiUtils.getAuthHeaders() // Use your existing auth method
+        headers: ApiUtils.getAuthHeaders()
       });
       
       console.log('📡 Stocks response status:', response.status);
@@ -193,13 +196,11 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
       
       const data = await response.json();
       
-      // Validate and clean the data
       if (!Array.isArray(data)) {
         console.error('❌ Stocks data is not an array:', typeof data);
         throw new Error('Invalid stocks data format received from server');
       }
       
-      // Clean and validate each stock
       const cleanedStocks = data.map((stock: any, index: number) => {
         try {
           return {
@@ -216,7 +217,7 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
             updated_at: String(stock.updated_at || new Date().toISOString()),
             product_name: stock.product_name ? String(stock.product_name) : undefined,
             product_unit: stock.product_unit ? String(stock.product_unit) : undefined,
-            product_quantity: stock.product_quantity, // Keep original type
+            product_quantity: stock.product_quantity,
             supplier_name: stock.supplier_name ? String(stock.supplier_name) : undefined,
             user_name: stock.user_name ? String(stock.user_name) : undefined
           };
@@ -239,7 +240,6 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
       });
       
       console.log('✅ Stocks fetched and cleaned:', cleanedStocks.length, 'items');
-      console.log('📋 Sample stock:', cleanedStocks[0]);
       return cleanedStocks;
     } catch (error) {
       console.error('❌ Error fetching stocks:', error);
@@ -247,10 +247,62 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
     }
   };
 
+  // 🆕 Validate pieces using the service
+  const validatePieces = async () => {
+    if (formData.items.length === 0) return;
+
+    setLoading(prev => ({ ...prev, validating: true }));
+
+    try {
+      const validationResult = processManagementService.validateBatchPieces(formData.items);
+      setValidation(validationResult);
+
+      // Set piece-related errors
+      if (!validationResult.is_valid) {
+        const newErrors: ProcessFormErrors = {};
+        
+        validationResult.stock_validations.forEach(validation => {
+          if (!validation.is_sufficient) {
+            const itemIndex = formData.items.findIndex(item => item.stock_id === validation.stock_id);
+            if (itemIndex >= 0) {
+              newErrors[`pieces_${itemIndex}`] = `Insufficient pieces: need ${validation.requested_pieces}, only ${validation.available_pieces} available`;
+            }
+          }
+        });
+
+        if (validationResult.errors.length > 0) {
+          newErrors.pieces = validationResult.errors.join('; ');
+        }
+
+        setErrors(prev => ({ ...prev, ...newErrors }));
+      } else {
+        // Clear piece-related errors
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          Object.keys(newErrors).forEach(key => {
+            if (key.startsWith('pieces_')) {
+              delete newErrors[key];
+            }
+          });
+          delete newErrors.pieces;
+          return newErrors;
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error validating pieces:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, validating: false }));
+    }
+  };
+
   const addItem = () => {
     setFormData(prev => ({
       ...prev,
-      items: [...prev.items, { stock_id: 0, finished_product_id: 0 }]
+      items: [...prev.items, { 
+        stock_id: 0, 
+        finished_product_id: 0, 
+        pieces_to_use: 1  // 🆕 Default pieces
+      }]
     }));
   };
 
@@ -263,6 +315,7 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
     }));
   };
 
+  // 🆕 Updated to handle pieces_to_use
   const updateItem = (index: number, field: keyof BatchProcessItem, value: number) => {
     setFormData(prev => ({
       ...prev,
@@ -274,6 +327,9 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
     // Clear field-specific errors
     if (errors[`items`]) {
       setErrors(prev => ({ ...prev, items: undefined }));
+    }
+    if (field === 'pieces_to_use' && errors[`pieces_${index}`]) {
+      setErrors(prev => ({ ...prev, [`pieces_${index}`]: undefined }));
     }
   };
 
@@ -293,20 +349,41 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
         hasItemErrors = true;
       }
       if (item.finished_product_id === 0) {
-        newErrors[`product_${index}`] = 'Please select a finished product';
+        newErrors[`product_${index}`] = 'Please select a finished product category';
+        hasItemErrors = true;
+      }
+      // 🆕 Validate pieces
+      if (item.pieces_to_use <= 0) {
+        newErrors[`pieces_${index}`] = 'Pieces must be greater than 0';
         hasItemErrors = true;
       }
     });
 
     if (hasItemErrors) {
-      newErrors.items = 'Please complete all item selections';
+      newErrors.items = 'Please complete all item selections and piece counts';
     }
 
-    // Check for duplicate stock items
-    const stockIds = formData.items.map(item => item.stock_id);
-    const duplicateStockIds = stockIds.filter((id, index) => stockIds.indexOf(id) !== index);
-    if (duplicateStockIds.length > 0) {
-      newErrors.items = 'Each stock item can only be used once per batch';
+    // Check for duplicate stock items with cumulative piece validation
+    const stockUsage = new Map<number, number>();
+    formData.items.forEach(item => {
+      if (item.stock_id > 0) {
+        const currentUsage = stockUsage.get(item.stock_id) || 0;
+        stockUsage.set(item.stock_id, currentUsage + item.pieces_to_use);
+      }
+    });
+
+    // Validate total piece usage per stock
+    for (const [stockId, totalUsage] of stockUsage) {
+      const stock = stocks.find(s => s.id === stockId);
+      if (stock && totalUsage > stock.piece) {
+        newErrors.pieces = `Stock ${stock.batch}: Total usage (${totalUsage}) exceeds available pieces (${stock.piece})`;
+        hasItemErrors = true;
+      }
+    }
+
+    // Include validation errors if available
+    if (validation && !validation.is_valid) {
+      newErrors.pieces = `Piece validation failed: ${validation.errors.join('; ')}`;
     }
 
     setErrors(newErrors);
@@ -323,7 +400,7 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
     setLoading(prev => ({ ...prev, submitting: true }));
 
     try {
-      console.log('🚀 Submitting batch creation...', formData);
+      console.log('🚀 Submitting batch creation with pieces...', formData);
       
       const submitData: BatchProcessCreate = {
         ...formData,
@@ -331,7 +408,7 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
       };
 
       await processManagementService.createBatch(submitData);
-      console.log('✅ Batch created successfully');
+      console.log('✅ Batch created successfully with piece tracking');
       onSuccess();
     } catch (error) {
       console.error('❌ Failed to create batch:', error);
@@ -343,49 +420,47 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
     }
   };
 
-  // Helper function to safely convert price to number
-  const safeParsePrice = (price: number | string | null | undefined): number => {
-    if (typeof price === 'number') {
-      return isNaN(price) ? 0 : price;
-    }
-    if (typeof price === 'string') {
-      const parsed = parseFloat(price);
-      return isNaN(parsed) ? 0 : parsed;
-    }
-    return 0;
+  // 🆕 Get available pieces for a stock considering current usage
+  const getAvailablePieces = (stockId: number): number => {
+    const stock = stocks.find(s => s.id === stockId);
+    if (!stock) return 0;
+
+    // Calculate total usage in current form
+    const totalUsage = formData.items
+      .filter(item => item.stock_id === stockId)
+      .reduce((sum, item) => sum + item.pieces_to_use, 0);
+
+    return Math.max(0, stock.piece - totalUsage);
   };
 
-  // Helper function to safely convert quantity to number
-  const safeParseQuantity = (quantity: number | string | null | undefined): number => {
-    if (typeof quantity === 'number') {
-      return isNaN(quantity) ? 0 : quantity;
-    }
-    if (typeof quantity === 'string') {
-      const parsed = parseFloat(quantity);
-      return isNaN(parsed) ? 0 : parsed;
-    }
-    return 0;
+  // 🆕 Get piece validation for a stock
+  const getStockValidation = (stockId: number): PieceValidation | null => {
+    if (!validation) return null;
+    return validation.stock_validations.find(v => v.stock_id === stockId) || null;
   };
 
   const getStockDisplayName = (stock: Stock): string => {
-    const quantity = safeParseQuantity(stock.product_quantity);
-    return `${stock.batch} - ${stock.product_name || `Product ${stock.product_id}`} (${stock.piece} pcs)`;
+    return `${stock.batch} - ${stock.product_name || `Product ${stock.product_id}`} (${stock.piece} pcs available)`;
   };
 
-  const getProductDisplayName = (product: Product): string => {
-    const price = safeParsePrice(product.price);
-    return `${product.name} - ${price.toFixed(2)}`;
+  const getCategoryDisplayName = (category: FinishedProductCategory): string => {
+    return category.name;
   };
 
   const availableStocks = stocks.filter(stock => 
-    !stock.archive && !stock.used
+    !stock.archive && !stock.used && stock.piece > 0  // 🆕 Only stocks with pieces
   );
+
+  // 🆕 Calculate total pieces that will be consumed
+  const getTotalPiecesUsed = (): number => {
+    return formData.items.reduce((sum, item) => sum + item.pieces_to_use, 0);
+  };
 
   // Debug information component
   const DebugInfo = () => {
     if (process.env.NODE_ENV !== 'development') return null;
     
-    const sampleProduct = products[0];
+    const sampleCategory = finishedProductCategories[0];
     const sampleStock = availableStocks[0];
     
     return (
@@ -400,23 +475,22 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
         <strong>🔍 Debug Info:</strong>
         <pre style={{ margin: '5px 0', fontSize: '11px' }}>
           API Base URL: {API_CONFIG.BASE_URL}
-          Products loaded: {products.length}
+          Categories loaded: {finishedProductCategories.length}
           Stocks loaded: {stocks.length}
           Available stocks: {availableStocks.length}
           Next batch: {nextBatchNumber}
           Current user: {currentUser?.username}
-          {sampleProduct && `
-          Sample product:
-            ID: ${sampleProduct.id} (${typeof sampleProduct.id})
-            Name: ${sampleProduct.name}
-            Price: ${sampleProduct.price} (${typeof sampleProduct.price})
-            Parsed price: ${safeParsePrice(sampleProduct.price)}`}
+          Validation status: {validation ? (validation.is_valid ? 'Valid' : 'Invalid') : 'Not validated'}
+          Total pieces to use: {getTotalPiecesUsed()}
+          {sampleCategory && `
+          Sample category:
+            ID: ${sampleCategory.id}
+            Name: ${sampleCategory.name}`}
           {sampleStock && `
           Sample stock:
             ID: ${sampleStock.id}
             Batch: ${sampleStock.batch}
-            Product: ${sampleStock.product_name}
-            Quantity: ${sampleStock.product_quantity} (${typeof sampleStock.product_quantity})`}
+            Available pieces: ${sampleStock.piece}`}
         </pre>
       </div>
     );
@@ -499,16 +573,48 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
                 </div>
               )}
 
-              {/* Data Status */}
+              {/* 🆕 Piece validation errors */}
+              {errors.pieces && (
+                <div className="error-message" style={{
+                  backgroundColor: '#fee',
+                  border: '1px solid #fcc',
+                  padding: '10px',
+                  borderRadius: '4px',
+                  margin: '10px 0',
+                  color: '#c33'
+                }}>
+                  <span>🔢 Piece Validation: {errors.pieces}</span>
+                </div>
+              )}
+
+              {/* 🆕 Validation status display */}
+              {validation && (
+                <div style={{ 
+                  backgroundColor: validation.is_valid ? '#e8f5e8' : '#fff3cd',
+                  border: `1px solid ${validation.is_valid ? '#28a745' : '#ffc107'}`,
+                  padding: '8px',
+                  borderRadius: '4px',
+                  margin: '10px 0',
+                  fontSize: '14px'
+                }}>
+                  {validation.is_valid ? (
+                    <span>✅ Piece validation passed - Total pieces: {getTotalPiecesUsed()}</span>
+                  ) : (
+                    <span>⚠️ Piece validation issues - Shortage: {validation.total_shortage} pieces</span>
+                  )}
+                  {loading.validating && <span> (Validating...)</span>}
+                </div>
+              )}
+
               <div style={{ 
-                backgroundColor: products.length > 0 && stocks.length > 0 ? '#e8f5e8' : '#fff3cd',
-                border: `1px solid ${products.length > 0 && stocks.length > 0 ? '#28a745' : '#ffc107'}`,
+                backgroundColor: finishedProductCategories.length > 0 && stocks.length > 0 ? '#e8f5e8' : '#fff3cd',
+                border: `1px solid ${finishedProductCategories.length > 0 && stocks.length > 0 ? '#28a745' : '#ffc107'}`,
                 padding: '8px',
                 borderRadius: '4px',
                 margin: '10px 0',
                 fontSize: '14px'
               }}>
-                📊 Data Status: {products.length} products, {availableStocks.length} available stocks
+                📊 Data Status: {finishedProductCategories.length} categories, {availableStocks.length} available stocks
               </div>
 
               {/* Process Items */}
@@ -519,7 +625,7 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
                     type="button"
                     className="btn btn-secondary"
                     onClick={addItem}
-                    disabled={availableStocks.length === 0 || products.length === 0}
+                    disabled={availableStocks.length === 0 || finishedProductCategories.length === 0}
                   >
                     + Add Item
                   </button>
@@ -533,11 +639,11 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
                     borderRadius: '4px',
                     margin: '10px 0'
                   }}>
-                    ⚠️ No available stocks found. Please ensure you have active, unused stock items.
+                    ⚠️ No available stocks found. Please ensure you have active, unused stock items with available pieces.
                   </div>
                 )}
 
-                {products.length === 0 && (
+                {finishedProductCategories.length === 0 && (
                   <div style={{ 
                     backgroundColor: '#f8d7da', 
                     border: '1px solid #f5c6cb', 
@@ -545,138 +651,186 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
                     borderRadius: '4px',
                     margin: '10px 0'
                   }}>
-                    ⚠️ No products found. Please ensure you have products configured.
+                    ⚠️ No finished product categories found. Please ensure you have categories configured.
                   </div>
                 )}
 
                 <div className="items-list">
-                  {formData.items.map((item, index) => (
-                    <div key={index} className="process-item-form">
-                      <div className="item-header">
-                        <span className="item-number">Item #{index + 1}</span>
-                        {formData.items.length > 1 && (
-                          <button
-                            type="button"
-                            className="remove-item-btn"
-                            onClick={() => removeItem(index)}
-                          >
-                            🗑️
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="item-fields">
-                        <div className="field-group">
-                          <label htmlFor={`stock_${index}`}>
-                            Stock Item <span className="required">*</span>
-                          </label>
-                          <select
-                            id={`stock_${index}`}
-                            value={item.stock_id}
-                            onChange={(e) => updateItem(index, 'stock_id', parseInt(e.target.value))}
-                            className={errors[`stock_${index}`] ? 'error' : ''}
-                            required
-                            disabled={availableStocks.length === 0}
-                          >
-                            <option value={0}>
-                              {availableStocks.length === 0 ? 'No stocks available' : 'Select stock item...'}
-                            </option>
-                            {availableStocks.map((stock) => {
-                              try {
-                                return (
-                                  <option key={stock.id} value={stock.id}>
-                                    {getStockDisplayName(stock)}
-                                  </option>
-                                );
-                              } catch (error) {
-                                console.warn('Error rendering stock option:', stock, error);
-                                return (
-                                  <option key={stock.id} value={stock.id}>
-                                    Stock ID: {stock.id} (Error in display)
-                                  </option>
-                                );
-                              }
-                            })}
-                          </select>
-                          {errors[`stock_${index}`] && (
-                            <span className="field-error">{errors[`stock_${index}`]}</span>
+                  {formData.items.map((item, index) => {
+                    const selectedStock = stocks.find(s => s.id === item.stock_id);
+                    const availablePieces = getAvailablePieces(item.stock_id);
+                    const stockValidation = getStockValidation(item.stock_id);
+                    
+                    return (
+                      <div key={index} className="process-item-form">
+                        <div className="item-header">
+                          <span className="item-number">Item #{index + 1}</span>
+                          {formData.items.length > 1 && (
+                            <button
+                              type="button"
+                              className="remove-item-btn"
+                              onClick={() => removeItem(index)}
+                            >
+                              🗑️
+                            </button>
                           )}
                         </div>
 
-                        <div className="field-group">
-                          <label htmlFor={`product_${index}`}>
-                            Finished Product <span className="required">*</span>
-                          </label>
-                          <select
-                            id={`product_${index}`}
-                            value={item.finished_product_id}
-                            onChange={(e) => updateItem(index, 'finished_product_id', parseInt(e.target.value))}
-                            className={errors[`product_${index}`] ? 'error' : ''}
-                            required
-                            disabled={products.length === 0}
-                          >
-                            <option value={0}>
-                              {products.length === 0 ? 'No products available' : 'Select finished product...'}
-                            </option>
-                            {products.map((product) => {
-                              try {
-                                return (
-                                  <option key={product.id} value={product.id}>
-                                    {getProductDisplayName(product)}
-                                  </option>
-                                );
-                              } catch (error) {
-                                console.warn('Error rendering product option:', product, error);
-                                return (
-                                  <option key={product.id} value={product.id}>
-                                    {product.name || `Product ID: ${product.id}`} (Error in display)
-                                  </option>
-                                );
-                              }
-                            })}
-                          </select>
-                          {errors[`product_${index}`] && (
-                            <span className="field-error">{errors[`product_${index}`]}</span>
-                          )}
-                        </div>
-                      </div>
+                        <div className="item-fields">
+                          <div className="field-group">
+                            <label htmlFor={`stock_${index}`}>
+                              Stock Item <span className="required">*</span>
+                            </label>
+                            <select
+                              id={`stock_${index}`}
+                              value={item.stock_id}
+                              onChange={(e) => updateItem(index, 'stock_id', parseInt(e.target.value))}
+                              className={errors[`stock_${index}`] ? 'error' : ''}
+                              required
+                              disabled={availableStocks.length === 0}
+                            >
+                              <option value={0}>
+                                {availableStocks.length === 0 ? 'No stocks available' : 'Select stock item...'}
+                              </option>
+                              {availableStocks.map((stock) => {
+                                try {
+                                  return (
+                                    <option key={stock.id} value={stock.id}>
+                                      {getStockDisplayName(stock)}
+                                    </option>
+                                  );
+                                } catch (error) {
+                                  console.warn('Error rendering stock option:', stock, error);
+                                  return (
+                                    <option key={stock.id} value={stock.id}>
+                                      Stock ID: {stock.id} (Error in display)
+                                    </option>
+                                  );
+                                }
+                              })}
+                            </select>
+                            {errors[`stock_${index}`] && (
+                              <span className="field-error">{errors[`stock_${index}`]}</span>
+                            )}
+                          </div>
 
-                      {/* Item Preview */}
-                      {item.stock_id > 0 && item.finished_product_id > 0 && (
-                        <div className="item-preview">
-                          <div className="preview-icon">✓</div>
-                          <div className="preview-text">
-                            Processing{' '}
-                            <strong>
-                              {(() => {
+                          {/* 🆕 Pieces to use field */}
+                          <div className="field-group">
+                            <label htmlFor={`pieces_${index}`}>
+                              Pieces to Use <span className="required">*</span>
+                              {selectedStock && (
+                                <span className="field-info">
+                                  (Available: {selectedStock.piece})
+                                </span>
+                              )}
+                            </label>
+                            <input
+                              type="number"
+                              id={`pieces_${index}`}
+                              value={item.pieces_to_use}
+                              onChange={(e) => updateItem(index, 'pieces_to_use', parseInt(e.target.value) || 0)}
+                              className={errors[`pieces_${index}`] ? 'error' : ''}
+                              min={1}
+                              max={selectedStock?.piece || 999999}
+                              required
+                              disabled={!Boolean(selectedStock)}
+                              placeholder="Enter pieces"
+                            />
+                            {errors[`pieces_${index}`] && (
+                              <span className="field-error">{errors[`pieces_${index}`]}</span>
+                            )}
+                            {/* 🆕 Piece validation feedback */}
+                            {stockValidation && !stockValidation.is_sufficient && (
+                              <span className="field-warning" style={{ color: '#856404', fontSize: '12px' }}>
+                                ⚠️ Shortage: {stockValidation.shortage} pieces
+                              </span>
+                            )}
+                            {selectedStock && item.pieces_to_use > 0 && (
+                              <span className="field-info" style={{ fontSize: '12px', color: '#666' }}>
+                                Remaining after: {selectedStock.piece - item.pieces_to_use} pieces
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="field-group">
+                            <label htmlFor={`product_${index}`}>
+                              Finished Product Category <span className="required">*</span>
+                            </label>
+                            <select
+                              id={`product_${index}`}
+                              value={item.finished_product_id}
+                              onChange={(e) => updateItem(index, 'finished_product_id', parseInt(e.target.value))}
+                              className={errors[`product_${index}`] ? 'error' : ''}
+                              required
+                              disabled={finishedProductCategories.length === 0}
+                            >
+                              <option value={0}>
+                                {finishedProductCategories.length === 0 ? 'No categories available' : 'Select finished product category...'}
+                              </option>
+                              {finishedProductCategories.map((category) => {
                                 try {
-                                  const stock = availableStocks.find(s => s.id === item.stock_id);
-                                  return stock?.batch || `Stock ID: ${item.stock_id}`;
+                                  return (
+                                    <option key={category.id} value={category.id}>
+                                      {getCategoryDisplayName(category)}
+                                    </option>
+                                  );
                                 } catch (error) {
-                                  return `Stock ID: ${item.stock_id}`;
+                                  console.warn('Error rendering category option:', category, error);
+                                  return (
+                                    <option key={category.id} value={category.id}>
+                                      {category.name || `Category ID: ${category.id}`} (Error in display)
+                                    </option>
+                                  );
                                 }
-                              })()}
-                            </strong>
-                            {' → '}
-                            <strong>
-                              {(() => {
-                                try {
-                                  const product = products.find(p => p.id === item.finished_product_id);
-                                  return product?.name || `Product ID: ${item.finished_product_id}`;
-                                } catch (error) {
-                                  return `Product ID: ${item.finished_product_id}`;
-                                }
-                              })()}
-                            </strong>
+                              })}
+                            </select>
+                            {errors[`product_${index}`] && (
+                              <span className="field-error">{errors[`product_${index}`]}</span>
+                            )}
                           </div>
                         </div>
-                      )}
-                    </div>
-                  ))}
+
+                        {/* 🆕 Enhanced item preview with pieces */}
+                        {item.stock_id > 0 && item.finished_product_id > 0 && item.pieces_to_use > 0 && (
+                          <div className="item-preview">
+                            <div className="preview-icon">
+                              {stockValidation?.is_sufficient !== false ? '✓' : '⚠️'}
+                            </div>
+                            <div className="preview-text">
+                              Processing{' '}
+                              <strong>{item.pieces_to_use} pieces</strong>
+                              {' from '}
+                              <strong>
+                                {(() => {
+                                  try {
+                                    const stock = availableStocks.find(s => s.id === item.stock_id);
+                                    return stock?.batch || `Stock ID: ${item.stock_id}`;
+                                  } catch (error) {
+                                    return `Stock ID: ${item.stock_id}`;
+                                  }
+                                })()}
+                              </strong>
+                              {' → '}
+                              <strong>
+                                {(() => {
+                                  try {
+                                    const category = finishedProductCategories.find(c => c.id === item.finished_product_id);
+                                    return category?.name || `Category ID: ${item.finished_product_id}`;
+                                  } catch (error) {
+                                    return `Category ID: ${item.finished_product_id}`;
+                                  }
+                                })()}
+                              </strong>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Summary */}
+              {/* 🆕 Enhanced Summary with pieces */}
               <div className="batch-summary">
                 <h3>Batch Summary</h3>
                 <div className="summary-stats">
@@ -685,19 +839,27 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
                     <span className="summary-value">{formData.items.length}</span>
                   </div>
                   <div className="summary-item">
+                    <span className="summary-label">Total Pieces:</span>
+                    <span className="summary-value">{getTotalPiecesUsed()}</span>
+                  </div>
+                  <div className="summary-item">
                     <span className="summary-label">Completed Items:</span>
                     <span className="summary-value">
-                      {formData.items.filter(item => item.stock_id > 0 && item.finished_product_id > 0).length}
+                      {formData.items.filter(item => 
+                        item.stock_id > 0 && item.finished_product_id > 0 && item.pieces_to_use > 0
+                      ).length}
                     </span>
                   </div>
                   <div className="summary-item">
                     <span className="summary-label">Ready to Process:</span>
                     <span className={`summary-value ${
-                      formData.items.every(item => item.stock_id > 0 && item.finished_product_id > 0) 
-                        ? 'ready' : 'not-ready'
+                      Boolean(validation?.is_valid) && formData.items.every(item => 
+                        item.stock_id > 0 && item.finished_product_id > 0 && item.pieces_to_use > 0
+                      ) ? 'ready' : 'not-ready'
                     }`}>
-                      {formData.items.every(item => item.stock_id > 0 && item.finished_product_id > 0) 
-                        ? 'Yes' : 'No'}
+                      {Boolean(validation?.is_valid) && formData.items.every(item => 
+                        item.stock_id > 0 && item.finished_product_id > 0 && item.pieces_to_use > 0
+                      ) ? 'Yes' : 'No'}
                     </span>
                   </div>
                 </div>
@@ -719,7 +881,14 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
             type="submit"
             className="btn btn-primary"
             onClick={handleSubmit}
-            disabled={loading.submitting || loading.data || products.length === 0 || availableStocks.length === 0}
+            disabled={
+              loading.submitting || 
+              loading.data || 
+              loading.validating ||
+              finishedProductCategories.length === 0 || 
+              availableStocks.length === 0 ||
+              Boolean(validation && !validation.is_valid)  // 🆕 Disable if validation fails
+            }
           >
             {loading.submitting ? (
               <>
@@ -727,7 +896,7 @@ const BatchProcessUpload: React.FC<BatchProcessUploadProps> = ({
                 Creating Batch...
               </>
             ) : (
-              'Create Process Batch'
+              `Create Process Batch (${getTotalPiecesUsed()} pieces)`  // 🆕 Show piece count
             )}
           </button>
         </div>
