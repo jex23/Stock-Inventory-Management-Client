@@ -58,6 +58,12 @@ export interface ChangePasswordFirstLoginRequest {
   new_password: string;
 }
 
+export interface ChangePasswordRequest {
+  username_or_email: string;
+  current_password: string;
+  new_password: string;
+}
+
 export interface PinEntry {
   email: string;
   pin: string;

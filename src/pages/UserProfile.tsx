@@ -4,7 +4,7 @@ import { authService } from '../services/authService';
 import { userProfileService } from '../services/userProfileService';
 import { useToast } from '../hooks/useToast';
 import Toast from '../components/Toast';
-import type { User } from '../types/auth';
+import type { User, ChangePasswordFormData, ChangePasswordRequest } from '../types/auth';
 import type { 
   UserProfileFormData,
   PinFormData,
@@ -17,7 +17,7 @@ import type {
 import './UserProfile.css';
 
 interface TabType {
-  id: 'profile' | 'security';
+  id: 'profile' | 'security' | 'password';
   label: string;
   icon: string;
 }
@@ -26,7 +26,7 @@ const UserProfile: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<'profile' | 'security'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'password'>('profile');
   
   // Profile form state
   const [profileFormData, setProfileFormData] = useState<UserProfileFormData>(
@@ -45,15 +45,35 @@ const UserProfile: React.FC = () => {
     confirm: boolean;
   }>({ current: false, new: false, confirm: false });
   
+  // Password form state
+  const [passwordFormData, setPasswordFormData] = useState<ChangePasswordFormData>({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+    isLoading: false
+  });
+  const [passwordErrors, setPasswordErrors] = useState<{
+    currentPassword?: string;
+    newPassword?: string;
+    confirmPassword?: string;
+  }>({});
+  const [showPasswordFields, setShowPasswordFields] = useState<{
+    current: boolean;
+    new: boolean;
+    confirm: boolean;
+  }>({ current: false, new: false, confirm: false });
+  
   // Loading states
-  const [loading, setLoading] = useState<ProfileLoadingState>({
+  const [loading, setLoading] = useState<ProfileLoadingState & { passwordUpdate: boolean }>({
     userUpdate: false,
-    pinUpdate: false
+    pinUpdate: false,
+    passwordUpdate: false
   });
   const [initialLoading, setInitialLoading] = useState(true);
 
   const tabs: TabType[] = [
     { id: 'profile', label: 'Profile Information', icon: '👤' },
+    { id: 'password', label: 'Change Password', icon: '🔑' },
     { id: 'security', label: 'Security Settings', icon: '🔒' }
   ];
 
@@ -212,6 +232,86 @@ const UserProfile: React.FC = () => {
   };
 
   // =============================================================================
+  // PASSWORD FORM HANDLERS
+  // =============================================================================
+
+  const handlePasswordChange = useCallback((field: keyof ChangePasswordFormData, value: string) => {
+    setPasswordFormData(prev => ({ ...prev, [field]: value }));
+    // Clear field-specific error when user starts typing
+    if (passwordErrors[field as keyof typeof passwordErrors]) {
+      setPasswordErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+  }, [passwordErrors]);
+
+  const togglePasswordVisibility = (field: keyof typeof showPasswordFields) => {
+    setShowPasswordFields(prev => ({ ...prev, [field]: !prev[field] }));
+  };
+
+  const validatePasswordForm = (): boolean => {
+    const errors: typeof passwordErrors = {};
+
+    if (!passwordFormData.currentPassword) {
+      errors.currentPassword = 'Current password is required';
+    }
+
+    if (!passwordFormData.newPassword) {
+      errors.newPassword = 'New password is required';
+    } else if (passwordFormData.newPassword.length < 6) {
+      errors.newPassword = 'Password must be at least 6 characters long';
+    }
+
+    if (!passwordFormData.confirmPassword) {
+      errors.confirmPassword = 'Please confirm your new password';
+    } else if (passwordFormData.confirmPassword !== passwordFormData.newPassword) {
+      errors.confirmPassword = 'Password confirmation does not match';
+    }
+
+    if (passwordFormData.currentPassword === passwordFormData.newPassword) {
+      errors.newPassword = 'New password must be different from current password';
+    }
+
+    setPasswordErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!currentUser) return;
+
+    if (!validatePasswordForm()) {
+      return;
+    }
+
+    setLoading(prev => ({ ...prev, passwordUpdate: true }));
+    setPasswordErrors({});
+
+    try {
+      const passwordChangeData: ChangePasswordRequest = {
+        username_or_email: currentUser.email,
+        current_password: passwordFormData.currentPassword,
+        new_password: passwordFormData.newPassword
+      };
+
+      await authService.changePassword(passwordChangeData);
+
+      toast.showSuccess('Password changed successfully!');
+      setPasswordFormData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+        isLoading: false
+      });
+      setShowPasswordFields({ current: false, new: false, confirm: false });
+    } catch (error) {
+      console.error('Password change failed:', error);
+      toast.showError(error instanceof Error ? error.message : 'Failed to change password');
+    } finally {
+      setLoading(prev => ({ ...prev, passwordUpdate: false }));
+    }
+  };
+
+  // =============================================================================
   // UTILITY FUNCTIONS
   // =============================================================================
 
@@ -226,6 +326,17 @@ const UserProfile: React.FC = () => {
     setPinFormData(userProfileService.createEmptyPinFormData());
     setPinErrors({});
     setShowPinFields({ current: false, new: false, confirm: false });
+  };
+
+  const resetPasswordForm = () => {
+    setPasswordFormData({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+      isLoading: false
+    });
+    setPasswordErrors({});
+    setShowPasswordFields({ current: false, new: false, confirm: false });
   };
 
   if (initialLoading) {
@@ -374,6 +485,135 @@ const UserProfile: React.FC = () => {
                     </>
                   ) : (
                     'Update Profile'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {activeTab === 'password' && (
+          <div className="security-section-modern">
+            <div className="section-header-modern">
+              <div className="section-icon">🔑</div>
+              <div className="section-text">
+                <h2>Change Password</h2>
+                <p>Update your account password for secure access</p>
+              </div>
+            </div>
+
+            <form onSubmit={handlePasswordSubmit} className="pin-form-modern">
+              <div className="form-group">
+                <label htmlFor="current_password">Current Password *</label>
+                <div className="password-input-group">
+                  <input
+                    type={showPasswordFields.current ? 'text' : 'password'}
+                    id="current_password"
+                    value={passwordFormData.currentPassword}
+                    onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
+                    placeholder="Enter current password"
+                    className={passwordErrors.currentPassword ? 'error' : ''}
+                    disabled={loading.passwordUpdate}
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() => togglePasswordVisibility('current')}
+                    disabled={loading.passwordUpdate}
+                  >
+                    {showPasswordFields.current ? '🙈' : '👁️'}
+                  </button>
+                </div>
+                {passwordErrors.currentPassword && (
+                  <span className="error-text">{passwordErrors.currentPassword}</span>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="new_password">New Password *</label>
+                <div className="password-input-group">
+                  <input
+                    type={showPasswordFields.new ? 'text' : 'password'}
+                    id="new_password"
+                    value={passwordFormData.newPassword}
+                    onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
+                    placeholder="Enter new password"
+                    className={passwordErrors.newPassword ? 'error' : ''}
+                    disabled={loading.passwordUpdate}
+                    minLength={6}
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() => togglePasswordVisibility('new')}
+                    disabled={loading.passwordUpdate}
+                  >
+                    {showPasswordFields.new ? '🙈' : '👁️'}
+                  </button>
+                </div>
+                {passwordErrors.newPassword && (
+                  <span className="error-text">{passwordErrors.newPassword}</span>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="confirm_password">Confirm New Password *</label>
+                <div className="password-input-group">
+                  <input
+                    type={showPasswordFields.confirm ? 'text' : 'password'}
+                    id="confirm_password"
+                    value={passwordFormData.confirmPassword}
+                    onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
+                    placeholder="Confirm new password"
+                    className={passwordErrors.confirmPassword ? 'error' : ''}
+                    disabled={loading.passwordUpdate}
+                    minLength={6}
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() => togglePasswordVisibility('confirm')}
+                    disabled={loading.passwordUpdate}
+                  >
+                    {showPasswordFields.confirm ? '🙈' : '👁️'}
+                  </button>
+                </div>
+                {passwordErrors.confirmPassword && (
+                  <span className="error-text">{passwordErrors.confirmPassword}</span>
+                )}
+              </div>
+
+              <div className="pin-requirements">
+                <h4>Password Requirements:</h4>
+                <ul>
+                  <li>Must be at least 6 characters long</li>
+                  <li>Must be different from your current password</li>
+                  <li>Use a combination of letters, numbers, and symbols</li>
+                  <li>Avoid using easily guessable information</li>
+                </ul>
+              </div>
+
+              <div className="form-actions">
+                <button
+                  type="button"
+                  onClick={resetPasswordForm}
+                  className="btn btn-secondary"
+                  disabled={loading.passwordUpdate}
+                >
+                  Clear Form
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={loading.passwordUpdate}
+                >
+                  {loading.passwordUpdate ? (
+                    <>
+                      <div className="spinner-small"></div>
+                      Changing Password...
+                    </>
+                  ) : (
+                    'Change Password'
                   )}
                 </button>
               </div>

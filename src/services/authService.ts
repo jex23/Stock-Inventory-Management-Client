@@ -233,12 +233,28 @@ class AuthService {
     }
   }
 
+  async changePassword(request: ChangePasswordFirstLoginRequest): Promise<ApiResponse> {
+    try {
+      const response = await this.apiCall<ApiResponse>(API_ENDPOINTS.CHANGE_PASSWORD_FIRST_LOGIN, {
+        method: 'POST',
+        body: JSON.stringify(request)
+      });
+
+      return response;
+    } catch (error) {
+      throw this.handleAuthError(error);
+    }
+  }
+
   async getCurrentUser(): Promise<User> {
     try {
       return await this.apiCall<User>(API_ENDPOINTS.USERS_ME);
     } catch (error) {
-      // If token is invalid, clear auth data
-      if (error instanceof APIError && error.status_code === HTTP_STATUS.UNAUTHORIZED) {
+      // If token is invalid or unprocessable, clear auth data
+      if (error instanceof APIError && (
+        error.status_code === HTTP_STATUS.UNAUTHORIZED || 
+        error.status_code === HTTP_STATUS.UNPROCESSABLE_ENTITY
+      )) {
         this.logout();
       }
       throw this.handleAuthError(error);
@@ -301,6 +317,8 @@ class AuthService {
           return new Error(ERROR_MESSAGES.INVALID_CREDENTIALS);
         case HTTP_STATUS.FORBIDDEN:
           return new Error(ERROR_MESSAGES.ACCOUNT_DISABLED);
+        case HTTP_STATUS.UNPROCESSABLE_ENTITY:
+          return new Error(ERROR_MESSAGES.TOKEN_EXPIRED);
         case HTTP_STATUS.SERVICE_UNAVAILABLE:
           return new Error(ERROR_MESSAGES.SERVER_ERROR);
         default:

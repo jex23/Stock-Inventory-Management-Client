@@ -1,3 +1,112 @@
+/* ========================================================================== */
+/* MODAL STYLES */
+/* ========================================================================== */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  box-sizing: border-box;
+  backdrop-filter: blur(5px);
+}
+
+.payment-modal {
+  background: white;
+  padding: 32px;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 500px;
+  animation: modalSlideUp 0.4s ease-out;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+  text-align: center;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 16px;
+}
+
+.modal-header h2 {
+  margin: 0;
+  color: #e74c3c;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.modal-body {
+  text-align: center;
+}
+
+.payment-message {
+  font-size: 1.1rem;
+  color: #2c3e50;
+  margin-bottom: 16px;
+}
+
+.modal-body p {
+  color: #64748b;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.developer-bypass {
+  margin-top: 24px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #dee2e6;
+}
+
+.developer-bypass h4 {
+  margin: 0 0 16px 0;
+  color: #495057;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.developer-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.developer-actions .btn {
+  flex: 1;
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ========================================================================== */
+/* LOGIN CONTAINER */
+/* ========================================================================== */
+
 .login-container {
   position: fixed;
   top: 0;

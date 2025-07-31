@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { authService } from './services/authService'
 import type { AuthState } from './types/auth'
 import { SidebarProvider, useSidebar } from './contexts/SidebarContext'
@@ -47,6 +47,8 @@ const AuthenticatedLayout = ({ children }: { children: React.ReactNode }) => {
 // Protected Route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [authState, setAuthState] = useState<AuthState>(authService.getAuthState())
+  const [isInitializing, setIsInitializing] = useState(true)
+  const location = useLocation()
 
   useEffect(() => {
     // Subscribe to auth state changes
@@ -54,16 +56,58 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return unsubscribe
   }, [])
 
-  // Check if token is expired
+  // Check authentication on component mount
   useEffect(() => {
-    const checkTokenValidity = async () => {
-      if (authState.isAuthenticated && authService.isTokenExpired()) {
-        await authService.logout()
+    const initializeAuth = async () => {
+      setIsInitializing(true)
+      
+      if (authState.isAuthenticated) {
+        // First check if token exists and is not obviously invalid
+        const token = authService.getToken()
+        if (!token || token.trim() === '') {
+          console.log('No valid token found, redirecting to login...')
+          localStorage.setItem('redirectPath', location.pathname)
+          await authService.logout()
+          setIsInitializing(false)
+          return
+        }
+
+        // Check if token is expired using client-side validation
+        if (authService.isTokenExpired()) {
+          console.log('Token expired, redirecting to login...')
+          localStorage.setItem('redirectPath', location.pathname)
+          await authService.logout()
+          setIsInitializing(false)
+          return
+        }
+
+        // If we have a valid token and it's not expired, trust it for now
+        // Only validate with server on actual API calls, not on every route change
+        console.log('Valid token found, proceeding...')
+        setIsInitializing(false)
+      } else {
+        setIsInitializing(false)
       }
     }
-    
-    checkTokenValidity()
+
+    initializeAuth()
   }, [authState.isAuthenticated])
+
+  // Show loading while initializing
+  if (isInitializing) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        fontSize: '18px',
+        color: '#666'
+      }}>
+        Loading...
+      </div>
+    )
+  }
 
   if (!authState.isAuthenticated) {
     return <Navigate to="/login" replace />
@@ -86,7 +130,13 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   }, [])
 
   if (authState.isAuthenticated) {
-    return <Navigate to="/home" replace />
+    // Check if there's a stored redirect path
+    const redirectPath = localStorage.getItem('redirectPath')
+    if (redirectPath) {
+      localStorage.removeItem('redirectPath')
+      return <Navigate to={redirectPath} replace />
+    }
+    return <Navigate to="/dashboard" replace />
   }
 
   return <>{children}</>
@@ -99,23 +149,6 @@ function App() {
   useEffect(() => {
     const unsubscribe = authService.subscribe(setAuthState)
     return unsubscribe
-  }, [])
-
-  // Initialize auth service and check token validity on app start
-  useEffect(() => {
-    const initializeAuth = async () => {
-      if (authState.isAuthenticated) {
-        try {
-          // Verify token is still valid by fetching user data
-          await authService.getCurrentUser()
-        } catch (error) {
-          console.log('Token invalid, logging out...')
-          await authService.logout()
-        }
-      }
-    }
-
-    initializeAuth()
   }, [])
 
   return (
