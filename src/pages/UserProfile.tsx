@@ -253,45 +253,54 @@ const UserProfile: React.FC = () => {
 
   return (
     <div className="user-profile">
-      {/* Header */}
-      <div className="profile-header">
-        <div className="header-content">
-          <div className="header-text">
-            <h1>👤 User Profile</h1>
-            <p>Manage your account information and security settings</p>
+      {/* Header Section */}
+      <div className="profile-header-modern">
+        <div className="profile-hero">
+          <div className="profile-avatar-container">
+            <div className="profile-avatar-large">
+              {currentUser.first_name?.charAt(0)?.toUpperCase() || 'U'}
+              {currentUser.last_name?.charAt(0)?.toUpperCase() || ''}
+            </div>
+            <div className="avatar-status-indicator"></div>
           </div>
-          <div className="user-avatar-large">
-            <span>{currentUser.first_name?.charAt(0)}{currentUser.last_name?.charAt(0)}</span>
+          <div className="profile-hero-info">
+            <h1 className="profile-hero-name">
+              {currentUser.first_name} {currentUser.last_name}
+            </h1>
+            <p className="profile-hero-role">{currentUser.position || 'User'}</p>
+            <p className="profile-hero-username">@{currentUser.username}</p>
           </div>
         </div>
       </div>
 
-
       {/* Tab Navigation */}
-      <div className="tab-navigation">
+      <div className="tab-navigation-modern">
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            className={`tab ${activeTab === tab.id ? 'active' : ''}`}
+            className={`tab-modern ${activeTab === tab.id ? 'active' : ''}`}
             onClick={() => setActiveTab(tab.id)}
           >
-            <span className="tab-icon">{tab.icon}</span>
-            <span className="tab-label">{tab.label}</span>
+            <span className="tab-icon-modern">{tab.icon}</span>
+            <span className="tab-label-modern">{tab.label}</span>
           </button>
         ))}
       </div>
 
       {/* Tab Content */}
-      <div className="tab-content">
+      <div className="tab-content-modern">
         {activeTab === 'profile' && (
-          <div className="profile-section">
-            <div className="section-header">
-              <h2>👤 Profile Information</h2>
-              <p>Update your personal information and account details</p>
+          <div className="profile-section-modern">
+            <div className="section-header-modern">
+              <div className="section-icon">👤</div>
+              <div className="section-text">
+                <h2>Profile Information</h2>
+                <p>Update your personal information and account details</p>
+              </div>
             </div>
 
-            <form onSubmit={handleProfileSubmit} className="profile-form">
-              <div className="form-grid">
+            <form onSubmit={handleProfileSubmit} className="profile-form-modern">
+              <div className="form-grid-modern">
                 {/* Username */}
                 <div className="form-group">
                   <label htmlFor="username">Username *</label>
@@ -373,13 +382,16 @@ const UserProfile: React.FC = () => {
         )}
 
         {activeTab === 'security' && (
-          <div className="security-section">
-            <div className="section-header">
-              <h2>🔒 Security Settings</h2>
-              <p>Update your PIN for secure access to the system</p>
+          <div className="security-section-modern">
+            <div className="section-header-modern">
+              <div className="section-icon">🔒</div>
+              <div className="section-text">
+                <h2>Security Settings</h2>
+                <p>Update your PIN for secure access to the system</p>
+              </div>
             </div>
 
-            <form onSubmit={handlePinSubmit} className="pin-form">
+            <form onSubmit={handlePinSubmit} className="pin-form-modern">
               <div className="form-group">
                 <label htmlFor="current_pin">Current PIN *</label>
                 <div className="password-input-group">

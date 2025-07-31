@@ -20,7 +20,10 @@ import type {
   SmartAllocationRequest,
   PieceValidation,
   BatchValidationResult,
-  PieceAnalytics
+  PieceAnalytics,
+  QualityControlUpdate,
+  BatchQualityControlUpdate,
+  QualityControlResponse
 } from '../types/processManagement';
 
 import { 
@@ -1051,6 +1054,158 @@ class ProcessManagementService {
       message: errorMessages.UNKNOWN_ERROR,
       details: { originalError: String(error) }
     };
+  }
+
+  // =============================================================================
+  // QUALITY CONTROL OPERATIONS
+  // =============================================================================
+
+  public async updateQualityControl(processId: number, data: QualityControlUpdate): Promise<ProcessManagementResponse> {
+    try {
+      console.log('🔄 Updating quality control for process:', processId, data);
+      this.setLoading('updating', true);
+      this.clearError();
+
+      if (data.good !== undefined && data.good !== null && data.good < 0) {
+        throw new Error('Good count cannot be negative');
+      }
+      if (data.defect !== undefined && data.defect !== null && data.defect < 0) {
+        throw new Error('Defect count cannot be negative');
+      }
+      if (data.price_output !== undefined && data.price_output !== null && data.price_output < 0) {
+        throw new Error('Output price cannot be negative');
+      }
+
+      const response = await this.apiCall<ProcessManagementResponse>(
+        `/process-management/${processId}/quality-control`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(data)
+        }
+      );
+
+      // Update the item in state
+      const index = this.state.items.findIndex(item => item.id === processId);
+      if (index !== -1) {
+        this.state.items[index] = response;
+        this.notifyListeners();
+      }
+
+      console.log('✅ Quality control updated:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Failed to update quality control:', error);
+      const processError = this.handleError(error);
+      this.setError(processError);
+      throw new Error(processError.message);
+    } finally {
+      this.setLoading('updating', false);
+    }
+  }
+
+  public async updateBatchQualityControl(batchNumber: string, data: BatchQualityControlUpdate): Promise<{ message: string; batch_number: string; items_updated: number; quality_data: QualityControlUpdate }> {
+    try {
+      console.log('🔄 Updating batch quality control:', batchNumber, data);
+      this.setLoading('updating', true);
+      this.clearError();
+
+      if (data.good !== undefined && data.good !== null && data.good < 0) {
+        throw new Error('Good count cannot be negative');
+      }
+      if (data.defect !== undefined && data.defect !== null && data.defect < 0) {
+        throw new Error('Defect count cannot be negative');
+      }
+      if (data.price_output !== undefined && data.price_output !== null && data.price_output < 0) {
+        throw new Error('Output price cannot be negative');
+      }
+
+      const response = await this.apiCall<{ message: string; batch_number: string; items_updated: number; quality_data: QualityControlUpdate }>(
+        `/process-management/batches/${batchNumber}/quality-control`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(data)
+        }
+      );
+
+      // Update all items in this batch in state
+      this.state.items = this.state.items.map(item => {
+        if (item.process_id_batch === batchNumber) {
+          return {
+            ...item,
+            good: data.good !== undefined ? data.good : item.good,
+            defect: data.defect !== undefined ? data.defect : item.defect,
+            price_output: data.price_output !== undefined ? data.price_output : item.price_output
+          };
+        }
+        return item;
+      });
+      this.notifyListeners();
+
+      console.log('✅ Batch quality control updated:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Failed to update batch quality control:', error);
+      const processError = this.handleError(error);
+      this.setError(processError);
+      throw new Error(processError.message);
+    } finally {
+      this.setLoading('updating', false);
+    }
+  }
+
+  public async getQualityControl(processId: number): Promise<QualityControlResponse> {
+    try {
+      console.log('🔍 Getting quality control for process:', processId);
+      this.setLoading('items', true);
+      this.clearError();
+
+      const response = await this.apiCall<QualityControlResponse>(
+        `/process-management/${processId}/quality-control`
+      );
+
+      console.log('✅ Quality control data retrieved:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Failed to get quality control:', error);
+      const processError = this.handleError(error);
+      this.setError(processError);
+      throw new Error(processError.message);
+    } finally {
+      this.setLoading('items', false);
+    }
+  }
+
+  public async completeQualityControl(processId: number, data: QualityControlUpdate): Promise<ProcessManagementResponse> {
+    try {
+      console.log('🎯 Completing quality control for process:', processId, data);
+      this.setLoading('updating', true);
+      this.clearError();
+
+      const response = await this.apiCall<ProcessManagementResponse>(
+        `/process-management/${processId}/complete-quality-control`,
+        {
+          method: 'POST',
+          body: JSON.stringify(data)
+        }
+      );
+
+      // Update the item in state
+      const index = this.state.items.findIndex(item => item.id === processId);
+      if (index !== -1) {
+        this.state.items[index] = response;
+        this.notifyListeners();
+      }
+
+      console.log('✅ Quality control completed:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Failed to complete quality control:', error);
+      const processError = this.handleError(error);
+      this.setError(processError);
+      throw new Error(processError.message);
+    } finally {
+      this.setLoading('updating', false);
+    }
   }
 
   // =============================================================================

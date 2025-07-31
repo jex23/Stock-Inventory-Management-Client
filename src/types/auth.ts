@@ -19,6 +19,9 @@ export type UserStatus = typeof USER_STATUS[keyof typeof USER_STATUS]
 
 // Base User Interface
 export interface User {
+  avatarUrl: string;
+  role: string;
+  contract: string;
   id: number;
   first_name: string;
   last_name: string;
@@ -30,6 +33,7 @@ export interface User {
   created_at: string;
   updated_at: string;
   is_first_login?: boolean;
+  pin?: string;
 }
 
 // Auth Request Models
@@ -52,6 +56,11 @@ export interface ChangePasswordFirstLoginRequest {
   username_or_email: string;
   current_password: string;
   new_password: string;
+}
+
+export interface PinEntry {
+  email: string;
+  pin: string;
 }
 
 // Auth Response Models

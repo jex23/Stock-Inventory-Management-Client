@@ -3,35 +3,40 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 60px;
+  height: 64px;
   background: white;
   border-bottom: 1px solid #e5e7eb;
   z-index: 1000;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-sizing: border-box;
 }
 
 .header-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
   height: 100%;
   padding: 0 24px;
   max-width: 100%;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
+  box-sizing: border-box;
+  overflow: visible; /* Allow dropdown to be visible outside header */
+  gap: 16px;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
 }
 
 .company-logo {
-  display: flex;
-  align-items: center;
+  display: flex !important;
+  align-items: center !important;
   gap: 12px;
   cursor: pointer;
   padding: 8px 12px;
   border-radius: 8px;
   transition: background-color 0.2s ease;
+  flex-shrink: 0 !important; /* Prevent shrinking */
+  order: -10 !important; /* Force to leftmost position */
+  position: relative;
+  left: 0 !important;
 }
 
 .company-logo:hover {
@@ -51,56 +56,85 @@
 }
 
 .header-right {
-  display: flex;
-  align-items: center;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px;
+  position: relative;
+  z-index: 1001;
+  flex-shrink: 0 !important; /* Prevent shrinking on small screens */
+  margin-left: auto !important; /* Push to right side */
+  order: 10 !important; /* Force to rightmost position */
+  right: 0 !important;
 }
 
 .user-menu {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 16px;
+  z-index: 1001; /* Higher than header to ensure dropdown appears above everything */
 }
 
-.user-profile {
+/* User Info Card in Header */
+.header-user-card {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 8px 16px;
-  border-radius: 8px;
-  background-color: #f9fafb;
-  border: 1px solid #e5e7eb;
-  transition: background-color 0.2s ease;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
 }
 
-.user-profile:hover {
-  background-color: #f3f4f6;
+.header-user-card:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.user-avatar {
-  width: 36px;
-  height: 36px;
+.header-user-avatar {
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 2px solid #e2e8f0;
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.avatar-initials {
   color: white;
   font-weight: 600;
   font-size: 0.875rem;
-  flex-shrink: 0;
+  line-height: 1;
 }
 
-.user-info {
+.header-user-info {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  gap: 2px;
   min-width: 0; /* Allow text truncation */
+  flex: 1;
+  overflow: hidden; /* Ensure content doesn't overflow */
 }
 
-.user-name {
-  font-weight: 600;
-  color: #1f2937;
+.header-user-name {
   font-size: 0.875rem;
+  font-weight: 600;
+  color: #1e293b;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
@@ -108,9 +142,10 @@
   max-width: 150px;
 }
 
-.user-role {
+.header-user-role {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: #64748b;
+  font-weight: 500;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
@@ -118,105 +153,659 @@
   max-width: 150px;
 }
 
-.logout-button {
+
+/* Dropdown Arrow */
+.dropdown-arrow {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: transparent;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  color: #6b7280;
+  margin-left: 8px;
+}
+
+.arrow {
+  font-size: 0.75rem;
+  color: #64748b;
+  transition: transform 0.2s ease;
+}
+
+.arrow.open {
+  transform: rotate(180deg);
+}
+
+/* User Dropdown Menu */
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 8px); /* More explicit positioning */
+  right: 0;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), 0 4px 6px rgba(0, 0, 0, 0.1);
+  min-width: 200px;
+  z-index: 9999; /* Very high z-index to ensure visibility */
+  overflow: visible;
+  animation: dropdownFadeIn 0.2s ease-out;
+  /* Ensure dropdown is always visible */
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  background: white; /* Explicit background */
+  border: none;
+  color: #374151;
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  white-space: nowrap;
+  text-align: left;
+  /* Ensure text is visible */
+  opacity: 1;
+  z-index: 1;
 }
 
-.logout-button:hover:not(:disabled) {
-  background-color: #fee2e2;
-  border-color: #fca5a5;
+.dropdown-item:hover {
+  background: #f8fafc;
+  color: #1e293b;
+}
+
+.dropdown-item.logout-item:hover {
+  background: #fee2e2;
   color: #dc2626;
 }
 
-.logout-button:disabled {
+.dropdown-item:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  background: none;
 }
 
-.logout-button.logging-out {
-  background-color: #f3f4f6;
-  border-color: #d1d5db;
+.dropdown-item.logging-out {
+  background: #f3f4f6;
   color: #9ca3af;
 }
 
-.logout-icon {
+.dropdown-icon {
   font-size: 1rem;
   line-height: 1;
+  flex-shrink: 0;
+  opacity: 1;
+  display: inline-block;
 }
 
-/* Responsive design */
+.dropdown-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 4px 0;
+  opacity: 1;
+  z-index: 1;
+}
+
+/* New styles for header container and details */
+.header-container {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 6px 32px rgba(31, 41, 55, 0.10), 0 1.5px 6px rgba(59, 130, 246, 0.07);
+  padding: 32px 28px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+}
+
+.header-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid #3b82f6;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.10);
+  background: #f3f4f6;
+}
+
+.header-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 200px;
+}
+
+.header-name {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.header-role {
+  font-size: 1rem;
+  color: #3b82f6;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.header-info-list {
+  display: flex;
+  flex-direction: row;      /* Change from column to row */
+  gap: 32px;                /* Add space between items */
+  flex-wrap: wrap;          /* Allow wrapping on small screens */
+  margin-top: 8px;
+}
+
+.header-info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  color: #374151;
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 8px 16px;
+  box-shadow: 0 1px 2px rgba(31, 41, 55, 0.04);
+}
+
+.header-info-label {
+  font-weight: 600;
+  color: #6b7280;
+  min-width: 90px;
+}
+
+.header-info-value {
+  font-weight: 500;
+  color: #1f2937;
+  word-break: break-all;
+}
+
+/* Enhanced Responsive Design */
+
+/* Large tablets and small laptops (1024px and below) */
+@media (max-width: 1024px) {
+  .header-content {
+    padding: 0 20px;
+  }
+  
+  .header-user-name {
+    max-width: 120px;
+  }
+  
+  .header-user-role {
+    max-width: 120px;
+  }
+}
+
+/* Tablets (768px and below) */
 @media (max-width: 768px) {
+  .header {
+    height: 56px; /* Slightly shorter on tablets */
+  }
+  
   .header-content {
     padding: 0 16px;
+    height: 56px;
+    justify-content: flex-start; /* Move title to left */
+    gap: 14px;
   }
   
-  .user-info {
-    display: none; /* Hide user info on mobile to save space */
+  .company-logo {
+    padding: 6px 10px;
+    gap: 8px;
   }
   
-  .user-profile {
-    padding: 8px 12px;
-  }
-  
-  .logout-button {
-    padding: 8px 12px;
-    font-size: 0.8125rem;
-  }
-  
-  .logout-button span:not(.logout-icon) {
-    display: none; /* Hide "Logout" text on mobile */
+  .logo-icon {
+    font-size: 1.375rem;
   }
   
   .company-name {
     font-size: 1rem;
   }
   
-  .user-name,
-  .user-role {
-    max-width: 100px;
-  }
-}
-
-@media (max-width: 480px) {
-  .header-content {
-    padding: 0 12px;
+  /* Push user info to the right */
+  .header-right {
+    margin-left: auto;
   }
   
-  .user-menu {
+  /* User card responsive */
+  .header-user-card {
+    padding: 6px 12px;
     gap: 8px;
   }
   
-  .user-avatar {
+  .header-user-avatar {
     width: 32px;
     height: 32px;
+  }
+  
+  .avatar-initials {
+    font-size: 0.75rem;
+  }
+  
+  .header-user-name {
+    font-size: 0.8125rem;
+    max-width: 100px;
+  }
+  
+  .header-user-role {
+    font-size: 0.6875rem;
+    max-width: 100px;
+  }
+  
+  /* Dropdown responsive */
+  .user-dropdown {
+    min-width: 180px;
+    right: -10px; /* Adjust for smaller screens */
+  }
+  
+  .dropdown-item {
+    padding: 10px 14px;
     font-size: 0.8125rem;
   }
   
-  .logout-button {
-    padding: 6px 10px;
+  .dropdown-arrow {
+    margin-left: 6px;
+  }
+}
+
+/* Small tablets and large phones (640px and below) */
+@media (max-width: 640px) {
+  .header {
+    height: 52px;
+  }
+  
+  .header-content {
+    padding: 0 14px;
+    height: 52px;
+    justify-content: flex-start; /* Move title to left */
+    gap: 12px;
   }
   
   .company-logo {
-    padding: 8px;
+    padding: 6px;
+    gap: 4px !important; /* Gap for icon + text */
+  }
+  
+  .logo-icon {
+    font-size: 1.375rem;
+  }
+  
+  /* Show company name on small tablets with smaller font */
+  .company-name {
+    font-size: 0.75rem !important;
+    white-space: nowrap;
+  }
+  
+  /* Push user info to the right */
+  .header-right {
+    margin-left: auto;
+  }
+  
+  /* Optimize user card for smaller screens */
+  .header-user-card {
+    padding: 4px 10px;
+    gap: 6px;
+  }
+  
+  .header-user-avatar {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .header-user-name {
+    font-size: 0.75rem;
+    max-width: 80px;
+  }
+  
+  .header-user-role {
+    font-size: 0.625rem;
+    max-width: 80px;
+  }
+  
+  .dropdown-arrow {
+    margin-left: 4px;
+  }
+  
+  .arrow {
+    font-size: 0.625rem;
+  }
+  
+  .user-dropdown {
+    min-width: 160px;
+    right: -15px;
+  }
+  
+  .dropdown-item {
+    padding: 8px 12px;
+    font-size: 0.75rem;
+  }
+}
+
+/* FORCE MOBILE HEADER POSITIONING */
+@media (max-width: 640px) {
+  .header-content .company-logo {
+    position: absolute !important;
+    left: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    z-index: 1000 !important;
+    margin: 0 !important;
+    padding: 4px !important;
+    gap: 6px !important; /* Add gap for icon + text */
+    max-width: calc(100% - 80px) !important; /* Leave space for user info */
+  }
+  
+  .header-content .company-logo .company-name {
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: none !important;
+  }
+  
+  .header-content .header-right {
+    position: absolute !important;
+    right: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    z-index: 1001 !important;
+    margin: 0 !important;
+    left: auto !important; /* Ensure it stays on the right */
+  }
+}
+
+/* Mobile phones (480px and below) */
+@media (max-width: 480px) {
+  .header {
+    height: 48px;
+  }
+  
+  .header-content {
+    padding: 0 8px; /* Reduce padding */
+    height: 48px;
+    justify-content: flex-start !important; /* Force left alignment */
+    gap: 8px; /* Smaller gap */
+    align-items: center;
+    display: flex !important;
+  }
+  
+  
+  .company-logo {
+    padding: 4px;
+    gap: 4px !important; /* Gap for icon + text */
+    flex-shrink: 0; /* Prevent shrinking */
+    order: -1; /* Force to the left */
   }
   
   .logo-icon {
     font-size: 1.25rem;
   }
   
+  /* Show company name on mobile with smaller font */
   .company-name {
-    font-size: 0.9375rem;
+    font-size: 0.6875rem !important;
+    white-space: nowrap;
+  }
+  
+  /* Push user info to the right and prevent overflow */
+  .header-right {
+    margin-left: auto;
+    flex-shrink: 0;
+    min-width: 32px; /* Minimum width for avatar */
+    order: 1; /* Force to the right */
+    position: relative;
+  }
+  
+  /* Mobile-optimized user card - avatar only */
+  .header-user-card {
+    padding: 2px;
+    gap: 0;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    min-width: 28px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .header-user-avatar {
+    width: 24px;
+    height: 24px;
+    border-width: 1px;
+  }
+  
+  .avatar-initials {
+    font-size: 0.625rem;
+  }
+  
+  /* Hide user info text on very small screens */
+  .header-user-info {
+    display: none !important;
+  }
+  
+  /* Hide dropdown arrow on mobile */
+  .dropdown-arrow {
+    display: none !important;
+  }
+  
+  .user-dropdown {
+    min-width: 140px;
+    right: 0; /* Align with right edge */
+    border-radius: 8px;
+  }
+  
+  .dropdown-item {
+    padding: 8px 10px;
+    font-size: 0.6875rem;
+    gap: 8px;
+  }
+  
+  .dropdown-icon {
+    font-size: 0.875rem;
+  }
+}
+
+/* Extra small phones (360px and below) */
+@media (max-width: 360px) {
+  .header {
+    height: 44px;
+  }
+  
+  .header-content {
+    padding: 0 6px; /* Even smaller padding */
+    height: 44px;
+    justify-content: flex-start !important; /* Force left alignment */
+    gap: 6px; /* Smaller gap */
+    align-items: center;
+    display: flex !important;
+  }
+  
+  
+  .company-logo {
+    padding: 2px;
+    gap: 3px !important; /* Small gap for icon + text */
+    flex-shrink: 0; /* Prevent shrinking */
+    order: -1; /* Force to the left */
+  }
+  
+  .logo-icon {
+    font-size: 1rem;
+  }
+  
+  /* Show company name on extra small screens with very small font */
+  .company-name {
+    font-size: 0.625rem !important;
+    white-space: nowrap;
+  }
+  
+  /* Push user info to the right and prevent overflow */
+  .header-right {
+    margin-left: auto;
+    flex-shrink: 0;
+    min-width: 24px;
+    order: 1; /* Force to the right */
+    position: relative;
+  }
+  
+  .header-user-card {
+    padding: 1px;
+    gap: 0;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    min-width: 22px;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .header-user-avatar {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .avatar-initials {
+    font-size: 0.5rem;
+  }
+  
+  .user-dropdown {
+    min-width: 120px;
+    right: 0; /* Align with right edge */
+  }
+  
+  .dropdown-item {
+    padding: 6px 8px;
+    font-size: 0.625rem;
+  }
+}
+
+/* Page header containers responsive */
+@media (max-width: 600px) {
+  .header-container {
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 8px;
+  }
+  
+  .header-avatar {
+    width: 72px;
+    height: 72px;
+  }
+  
+  .header-name {
+    font-size: 1.4rem;
+  }
+  
+  .header-info-list {
+    flex-direction: row;
+    gap: 8px;
+    align-items: stretch;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .header-user-card {
+    min-height: 44px; /* Apple's recommended touch target size */
+    touch-action: manipulation;
+  }
+  
+  .company-logo {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+  
+  .dropdown-item {
+    min-height: 44px;
+    touch-action: manipulation;
+    display: flex;
+    align-items: center;
+  }
+  
+  /* Remove hover effects on touch devices */
+  .header-user-card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  
+  .company-logo:hover {
+    background-color: transparent;
+  }
+}
+
+/* High DPI screens adjustments */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .header {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  }
+  
+  .header-user-card {
+    border-width: 0.5px;
+  }
+}
+
+/* Landscape orientation on mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+  .header {
+    height: 44px;
+  }
+  
+  .header-content {
+    height: 44px;
+    padding: 0 12px;
+  }
+  
+  .header-user-card {
+    padding: 2px 8px;
+  }
+  
+  .header-user-avatar {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .company-logo {
+    padding: 4px 6px;
+  }
+  
+  .logo-icon {
+    font-size: 1.125rem;
+  }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .header-user-card {
+    transition: none;
+  }
+  
+  .arrow {
+    transition: none;
+  }
+  
+  .user-dropdown {
+    animation: none;
+  }
+  
+  @keyframes dropdownFadeIn {
+    from { opacity: 1; transform: none; }
+    to { opacity: 1; transform: none; }
   }
 }

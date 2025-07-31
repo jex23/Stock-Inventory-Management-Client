@@ -270,6 +270,29 @@ class AuthService {
     }
   }
 
+  // Update user profile
+  async updateUser(updateData: Partial<User>): Promise<User> {
+    if (!this.isAuthenticated()) {
+      throw new Error('User not authenticated');
+    }
+
+    try {
+      const response = await this.apiCall<User>(API_ENDPOINTS.USERS_ME, {
+        method: 'PUT',
+        body: JSON.stringify(updateData)
+      });
+
+      // Update local auth state
+      this.authState.user = response;
+      localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(response));
+      this.notifyListeners();
+
+      return response;
+    } catch (error) {
+      throw this.handleAuthError(error);
+    }
+  }
+
   // Handle authentication errors
   private handleAuthError(error: unknown): Error {
     if (error instanceof APIError) {

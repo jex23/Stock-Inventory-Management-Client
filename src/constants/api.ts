@@ -1,6 +1,6 @@
 // API Base Configuration
 export const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_URL || 'http://localhost:4567',
+  BASE_URL: import.meta.env.VITE_API_URL || 'https://jamesgalos.shop/apiv1/stockinventory',
   TIMEOUT: 30000, // 30 seconds
   HEADERS: {
     'Content-Type': 'application/json',
@@ -21,6 +21,7 @@ export const API_ENDPOINTS = {
   FORGOT_PASSWORD: '/forgot-password',
   RESET_PASSWORD: '/reset-password',
   CHANGE_PASSWORD_FIRST_LOGIN: '/change-password-first-login',
+  ENTER_PIN: '/enter-pin',
   
   // Direct User Management Endpoints (for easy access)
   USERS: '/users',
@@ -33,6 +34,7 @@ export const API_ENDPOINTS = {
     FORGOT_PASSWORD: '/forgot-password',
     RESET_PASSWORD: '/reset-password',
     CHANGE_PASSWORD_FIRST_LOGIN: '/change-password-first-login',
+    ENTER_PIN: '/enter-pin',
   },
   
   // User Management Endpoints (nested for organization)

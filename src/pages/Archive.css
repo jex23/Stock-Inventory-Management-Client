@@ -1,69 +1,64 @@
-/* =============================================================================
-   Archive Management Styles - Matching Process Management
-   ============================================================================= */
+/* Archive.css - Based on SalesReport styling */
 
 .archive-management {
-  padding: 20px;
-  background-color: #f8f9fa;
+  padding: 24px;
+  background-color: #f8fafc;
   min-height: 100vh;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-/* =============================================================================
-   Page Header - Matching Process Management
-   ============================================================================= */
-
+/* Header Section */
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  padding: 16px 20px;
-  background: white;
-  border-radius: 12px;
-  color: #1e293b;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e2e8f0;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 .header-content h1 {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 600;
+  font-size: 2rem;
+  font-weight: 700;
   color: #1e293b;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .header-content p {
   margin: 4px 0 0 0;
-  opacity: 0.7;
-  font-size: 14px;
-  color: #64748b;
+  color: #6b7280;
+  font-size: 16px;
 }
 
 .user-info {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
+  gap: 8px;
+  color: #6b7280;
   font-size: 14px;
-  color: #495057;
 }
 
 .user-role {
-  opacity: 0.8;
+  background-color: #f0f9ff;
+  color: #3b82f6;
+  padding: 4px 8px;
+  border-radius: 6px;
   font-size: 12px;
-  color: #6c757d;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-/* =============================================================================
-   Error & Success Banners - Matching Process Management
-   ============================================================================= */
-
+/* Error States */
 .error-banner {
-  margin-bottom: 20px;
-  padding: 12px 16px;
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
   border-radius: 8px;
-  color: #721c24;
+  padding: 16px;
+  margin-bottom: 24px;
 }
 
 .error-content {
@@ -75,11 +70,14 @@
 .error-icon {
   margin-right: 8px;
   font-size: 16px;
+  color: #dc2626;
 }
 
 .error-message {
-  flex: 1;
+  color: #991b1b;
+  font-size: 14px;
   font-weight: 500;
+  flex: 1;
 }
 
 .error-close {
@@ -87,7 +85,7 @@
   border: none;
   font-size: 18px;
   cursor: pointer;
-  color: #721c24;
+  color: #dc2626;
   padding: 0;
   margin-left: 12px;
   opacity: 0.7;
@@ -98,67 +96,21 @@
   opacity: 1;
 }
 
-.success-banner {
-  margin-bottom: 20px;
-  padding: 12px 16px;
-  background-color: #d4edda;
-  border: 1px solid #c3e6cb;
-  border-radius: 8px;
-  color: #155724;
-}
-
-.success-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.success-icon {
-  margin-right: 8px;
-  font-size: 16px;
-}
-
-.success-message {
-  flex: 1;
-  font-weight: 500;
-}
-
-.success-close {
-  background: none;
-  border: none;
-  font-size: 18px;
-  cursor: pointer;
-  color: #155724;
-  padding: 0;
-  margin-left: 12px;
-  opacity: 0.7;
-  transition: opacity 0.2s;
-}
-
-.success-close:hover {
-  opacity: 1;
-}
-
-/* =============================================================================
-   Stats Cards - Matching Process Management
-   ============================================================================= */
-
+/* Summary Cards */
 .stats-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-bottom: 32px;
 }
 
 .stat-card {
   background: white;
-  padding: 20px;
+  padding: 24px;
   border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  display: flex;
-  align-items: center;
-  transition: transform 0.2s, box-shadow 0.2s;
-  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .stat-card:hover {
@@ -167,11 +119,17 @@
 }
 
 .stat-icon {
-  font-size: 24px;
-  margin-right: 16px;
-  background: #f8f9fa;
-  padding: 12px;
+  width: 24px;
+  height: 24px;
+  padding: 8px;
   border-radius: 8px;
+  background-color: #f0f9ff;
+  color: #3b82f6;
+  font-size: 24px;
+  margin-bottom: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .stat-content {
@@ -179,292 +137,200 @@
 }
 
 .stat-value {
-  font-size: 24px;
-  font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 4px;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 8px;
 }
 
 .stat-label {
   font-size: 14px;
-  color: #6c757d;
   font-weight: 500;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-/* =============================================================================
-   Tab Navigation - Matching Process Management
-   ============================================================================= */
-
-.tab-navigation {
-  display: flex;
-  background: white;
-  border-radius: 12px;
-  padding: 6px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  gap: 6px;
-  border: 1px solid #e2e8f0;
+/* Archive-specific responsive adjustments for filter controls */
+@media (max-width: 640px) {
+  .filter-controls {
+    gap: 12px;
+  }
+  
+  .filter-group {
+    min-width: 120px;
+  }
 }
 
-.tab {
-  flex: 1;
-  padding: 12px 20px;
-  border: none;
-  background: transparent;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  color: #6c757d;
-  transition: all 0.2s;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.tab:hover:not(:disabled) {
-  background: #f8f9fa;
-  color: #495057;
-}
-
-.tab.active {
-  background: #007bff;
-  color: white;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
-}
-
-.tab:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  background-color: #f8f9fa !important;
-  color: #6c757d !important;
-}
-
-/* =============================================================================
-   Filters Bar - Matching Process Management
-   ============================================================================= */
-
+/* Filters Section */
 .filters-bar {
   background: white;
-  padding: 16px 20px;
+  padding: 24px;
   border-radius: 12px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 24px;
+  border: 1px solid #e5e7eb;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 16px;
-  transition: opacity 0.3s;
-  border: 1px solid #e2e8f0;
 }
 
-.filters-bar.loading {
-  opacity: 0.8;
+.filter-controls {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .filter-group {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .filter-group label {
-  font-weight: 500;
-  color: #495057;
   font-size: 14px;
+  font-weight: 500;
+  color: #374151;
 }
 
 .filter-group select,
 .filter-group input {
-  padding: 8px 12px;
-  border: 1px solid #ced4da;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
   border-radius: 6px;
-  background: white;
-  cursor: pointer;
-  transition: border-color 0.2s;
+  font-size: 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  background-color: white;
 }
 
 .filter-group select:focus,
 .filter-group input:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-}
-
-.filter-group select:disabled,
-.filter-group input:disabled {
-  background-color: #e9ecef;
-  opacity: 0.6;
-  cursor: not-allowed;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .filter-actions {
   display: flex;
   gap: 12px;
+  justify-content: flex-end;
 }
 
-/* =============================================================================
-   Buttons - Matching Process Management
-   ============================================================================= */
-
+/* Buttons */
 .btn {
-  padding: 8px 16px;
+  padding: 10px 20px;
+  border-radius: 8px;
   border: none;
-  border-radius: 6px;
-  cursor: pointer;
   font-weight: 500;
   font-size: 14px;
-  transition: all 0.2s;
-  display: inline-flex;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  position: relative;
-  overflow: hidden;
-}
-
-.btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  gap: 8px;
+  min-height: 40px;
 }
 
 .btn-primary {
-  background-color: #007bff;
+  background-color: #3b82f6;
   color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #0056b3;
+  background-color: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
 }
 
 .btn-secondary {
-  background-color: #6c757d;
-  color: white;
+  background-color: white;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background-color: #545b62;
+  background-color: #f9fafb;
+  border-color: #9ca3af;
 }
 
 .btn-success {
-  background-color: #28a745;
+  background-color: #10b981;
   color: white;
 }
 
 .btn-success:hover:not(:disabled) {
-  background-color: #1e7e34;
+  background-color: #059669;
 }
 
 .btn-warning {
-  background-color: #ffc107;
-  color: #212529;
-}
-
-.btn-warning:hover:not(:disabled) {
-  background-color: #e0a800;
-}
-
-.btn-danger {
-  background-color: #dc3545;
+  background-color: #f59e0b;
   color: white;
 }
 
-.btn-danger:hover:not(:disabled) {
-  background-color: #c82333;
-}
-
-.btn-link {
-  background: none;
-  color: #007bff;
-  padding: 8px 12px;
-}
-
-.btn-link:hover:not(:disabled) {
-  background: rgba(0, 123, 255, 0.1);
-  color: #0056b3;
+.btn-warning:hover:not(:disabled) {
+  background-color: #d97706;
 }
 
 .btn-sm {
   padding: 6px 12px;
   font-size: 12px;
+  min-height: 32px;
 }
 
 .btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
-  background-color: #6c757d !important;
-  border-color: #6c757d !important;
-  color: white !important;
-  transform: none !important;
-  box-shadow: none !important;
+  transform: none;
 }
 
-/* =============================================================================
-   Cards (Bulk Actions, Export Actions)
-   ============================================================================= */
-
-.bulk-actions-card,
-.export-actions-card {
+/* Bulk Actions Card */
+.bulk-actions-card {
   background: white;
   border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  margin-bottom: 24px;
+  overflow: hidden;
 }
 
-.bulk-actions-card {
-  border-left: 4px solid #ffc107;
-  background: #fffbf0;
+.bulk-actions-header {
+  background-color: #f9fafb;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.bulk-actions-header,
-.export-actions-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.bulk-actions-header h3,
-.export-actions-header h3 {
-  margin: 0;
-  font-size: 18px;
+.bulk-actions-header h3 {
+  font-size: 1.125rem;
   font-weight: 600;
-  color: #495057;
+  color: #374151;
+  margin: 0;
 }
 
-.bulk-actions-content,
-.export-actions-content {
+.bulk-actions-content {
+  padding: 20px 24px;
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
 }
 
-.export-info {
-  font-size: 14px;
-  color: #6c757d;
-  font-style: italic;
-}
 
-/* =============================================================================
-   Tables - Matching Process Management
-   ============================================================================= */
-
+/* Tables */
 .table-container {
   background: white;
   border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
   overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e2e8f0;
+  margin-bottom: 24px;
 }
 
 .table-header {
-  padding: 16px 20px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #dee2e6;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #f9fafb;
 }
 
 .table-actions {
@@ -481,16 +347,8 @@
   gap: 8px;
   cursor: pointer;
   font-weight: 500;
-  color: #495057;
-}
-
-.select-all input {
-  cursor: pointer;
-}
-
-.select-all input:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
+  color: #374151;
+  margin: 0;
 }
 
 .table-responsive {
@@ -500,43 +358,43 @@
 .archive-table {
   width: 100%;
   border-collapse: collapse;
-  background: white;
-}
-
-.archive-table th,
-.archive-table td {
-  padding: 12px 16px;
-  text-align: left;
-  border-bottom: 1px solid #f1f3f4;
 }
 
 .archive-table th {
-  background: #f8f9fa;
+  background-color: #f9fafb;
+  padding: 12px 16px;
+  text-align: left;
   font-weight: 600;
-  color: #495057;
   font-size: 14px;
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
 }
 
-.archive-table tr:hover {
-  background: #f8f9fa;
+.archive-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.archive-table tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+.archive-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .archive-table tr.selected {
-  background: #e3f2fd;
-}
-
-.archive-table tr.selected:hover {
-  background: #bbdefb;
+  background-color: #eff6ff;
 }
 
 .loading-row,
 .empty-row {
   text-align: center;
   padding: 40px 20px;
-  color: #6c757d;
+  color: #6b7280;
   font-style: italic;
 }
 
@@ -547,41 +405,31 @@
   gap: 12px;
 }
 
+/* Badge Components */
 .status-badge {
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .status-badge.active {
-  background: #d4edda;
-  color: #155724;
+  background-color: #dcfce7;
+  color: #16a34a;
 }
 
 .status-badge.archived {
-  background: #f8d7da;
-  color: #721c24;
+  background-color: #fee2e2;
+  color: #dc2626;
 }
 
 .status-badge.partial {
-  background: #fff3cd;
-  color: #856404;
-}
-
-.status-badge.stock {
-  background: #dbeafe;
-  color: #1e40af;
-}
-
-.status-badge.process {
-  background: #f3e8ff;
-  color: #7c3aed;
+  background-color: #fef3c7;
+  color: #d97706;
 }
 
 .action-buttons {
@@ -590,45 +438,32 @@
   align-items: center;
 }
 
-/* =============================================================================
-   Spinners - Matching Process Management
-   ============================================================================= */
-
+/* Loading States */
 .spinner {
-  display: inline-block;
-  width: 20px;
-  height: 20px;
-  border: 3px solid #f3f3f3;
-  border-top: 3px solid #007bff;
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f4f6;
+  border-top: 4px solid #3b82f6;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
 
-.spinner-small {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border: 2px solid #f3f3f3;
-  border-top: 2px solid #007bff;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-right: 6px;
+.loading-text {
+  color: #6b7280;
+  font-size: 16px;
 }
 
-/* =============================================================================
-   Loading Overlay
-   ============================================================================= */
-
+/* Loading Overlay */
 .loading-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   z-index: 1000;
 }
 
@@ -636,118 +471,250 @@
   background: white;
   padding: 32px;
   border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  max-width: 400px;
-  text-align: center;
-}
-
-.loading-content .spinner {
-  width: 32px;
-  height: 32px;
-  border-width: 4px;
 }
 
 .loading-content p {
   margin: 0;
   font-weight: 500;
-  color: #495057;
+  color: #1e293b;
   font-size: 18px;
 }
 
-.loading-content small {
-  color: #6c757d;
-  font-size: 14px;
+/* Progress Bar */
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: #f3f4f6;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
 }
 
-/* =============================================================================
-   Animations
-   ============================================================================= */
+.progress-fill {
+  height: 100%;
+  background-color: #3b82f6;
+  transition: width 0.3s ease;
+}
 
+.progress-text {
+  position: absolute;
+  top: -20px;
+  right: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+/* Batch Details Expansion */
+.batch-details-row {
+  background-color: #f8fafc;
+}
+
+.batch-details {
+  padding: 24px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.batch-details h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 16px 0;
+}
+
+.batch-number-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.batch-expand-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.batch-expand-btn:hover {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.item-label {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-left: 4px;
+}
+
+.items-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.items-detail-table th {
+  background-color: #f9fafb;
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.items-detail-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.items-detail-table tr:hover {
+  background-color: #f9fafb;
+}
+
+/* Animation */
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
 
-@keyframes slideIn {
-  0% {
+@keyframes fadeIn {
+  from {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(10px);
   }
-  100% {
+  to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-@keyframes fadeIn {
-  0% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
+.fade-in {
+  animation: fadeIn 0.5s ease-in;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .stats-cards {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   }
 }
 
-/* =============================================================================
-   Responsive Design
-   ============================================================================= */
-
 @media (max-width: 768px) {
   .archive-management {
-    padding: 12px;
+    padding: 16px;
   }
   
   .page-header {
     flex-direction: column;
-    text-align: center;
-    gap: 12px;
+    align-items: stretch;
+  }
+  
+  .header-content h1 {
+    font-size: 1.5rem;
   }
   
   .stats-cards {
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
-  }
-  
-  .tab-navigation {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
   
   .filters-bar {
     flex-direction: column;
     align-items: stretch;
+    gap: 16px;
+  }
+  
+  .filter-controls {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+  }
+  
+  .filter-actions {
+    width: 100%;
+  }
+  
+  .btn {
+    flex: 1;
+    justify-content: center;
   }
   
   .table-actions {
     flex-direction: column;
     align-items: stretch;
+    gap: 12px;
   }
   
-  .bulk-actions-content,
-  .export-actions-content {
+  .bulk-actions-content {
     flex-direction: column;
   }
 }
 
 @media (max-width: 480px) {
-  .action-buttons {
-    flex-direction: column;
-  }
-  
-  .filter-actions {
-    flex-direction: column;
+  .filters-bar {
+    padding: 16px;
   }
   
   .stat-card {
-    flex-direction: column;
-    text-align: center;
+    padding: 16px;
   }
   
-  .stat-icon {
-    margin-right: 0;
-    margin-bottom: 8px;
+  .stat-value {
+    font-size: 1.5rem;
   }
+  
+  .action-buttons {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
+/* Accessibility */
+.btn:focus,
+.filter-group select:focus,
+.filter-group input:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.archive-table th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* Code styling */
+code {
+  background-color: #f3f4f6;
+  color: #e83e8c;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 12px;
+}
+
+/* Input Styling */
+input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #3b82f6;
 }

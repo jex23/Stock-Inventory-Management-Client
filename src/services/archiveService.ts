@@ -377,7 +377,7 @@ class ArchiveService {
       }
 
       // Apply filters
-      let filteredBatches = this.applyFilters(allBatches, filters);
+      const filteredBatches = this.applyFilters(allBatches, filters);
 
       // Cache unfiltered results
       if (!filters) {

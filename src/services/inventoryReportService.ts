@@ -60,11 +60,16 @@ class InventoryReportService {
     try {
       const url = ApiUtils.buildUrl(INVENTORY_REPORT_ENDPOINTS.INVENTORY_REPORT, params);
       
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+      
       const response = await fetch(url, {
         method: HTTP_METHODS.GET,
         headers: ApiUtils.getAuthHeaders(),
-        signal: AbortSignal.timeout(API_CONFIG.TIMEOUT),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(ApiUtils.getErrorMessage(response.status));
@@ -85,11 +90,16 @@ class InventoryReportService {
     try {
       const url = ApiUtils.buildUrl(INVENTORY_REPORT_ENDPOINTS.INVENTORY_SUMMARY);
       
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+      
       const response = await fetch(url, {
         method: HTTP_METHODS.GET,
         headers: ApiUtils.getAuthHeaders(),
-        signal: AbortSignal.timeout(API_CONFIG.TIMEOUT),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(ApiUtils.getErrorMessage(response.status));
@@ -110,11 +120,16 @@ class InventoryReportService {
     try {
       const url = ApiUtils.buildUrl(INVENTORY_REPORT_ENDPOINTS.LOW_STOCK_ALERT, params);
       
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+      
       const response = await fetch(url, {
         method: HTTP_METHODS.GET,
         headers: ApiUtils.getAuthHeaders(),
-        signal: AbortSignal.timeout(API_CONFIG.TIMEOUT),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(ApiUtils.getErrorMessage(response.status));
@@ -142,12 +157,18 @@ class InventoryReportService {
         pin: pin
       };
 
+      // Create timeout controller for better compatibility
+      const pinController = new AbortController();
+      const pinTimeoutId = setTimeout(() => pinController.abort(), API_CONFIG.TIMEOUT);
+
       const pinResponse = await fetch(`${API_CONFIG.BASE_URL}${API_ENDPOINTS.ENTER_PIN}`, {
         method: HTTP_METHODS.POST,
         headers: API_CONFIG.HEADERS,
         body: JSON.stringify(pinData),
-        signal: AbortSignal.timeout(API_CONFIG.TIMEOUT),
+        signal: pinController.signal,
       });
+
+      clearTimeout(pinTimeoutId);
 
       if (!pinResponse.ok) {
         const errorData = await pinResponse.json().catch(() => ({ detail: 'Invalid PIN or email' }));
@@ -159,14 +180,20 @@ class InventoryReportService {
       // Get inventory report data using the authenticated token
       const reportUrl = ApiUtils.buildUrl(INVENTORY_REPORT_ENDPOINTS.INVENTORY_REPORT, params);
       
+      // Create separate timeout controller for report request
+      const reportController = new AbortController();
+      const reportTimeoutId = setTimeout(() => reportController.abort(), API_CONFIG.TIMEOUT * 2); // Double timeout for data fetching
+      
       const reportResponse = await fetch(reportUrl, {
         method: HTTP_METHODS.GET,
         headers: {
           ...API_CONFIG.HEADERS,
           'Authorization': `Bearer ${authData.access_token}`
         },
-        signal: AbortSignal.timeout(API_CONFIG.TIMEOUT),
+        signal: reportController.signal,
       });
+
+      clearTimeout(reportTimeoutId);
 
       if (!reportResponse.ok) {
         throw new Error(ApiUtils.getErrorMessage(reportResponse.status));
@@ -254,12 +281,43 @@ class InventoryReportService {
    * Export inventory report as CSV with PIN validation and download
    */
   async exportAndDownloadCSV(pin: string, params?: InventoryReportQueryParams, filename?: string): Promise<void> {
-    try {
-      const blob = await this.exportInventoryReportCSV(pin, params);
-      this.downloadCSV(blob, filename);
-    } catch (error) {
-      console.error('Error exporting and downloading inventory CSV:', error);
-      throw error;
+    const maxRetries = 2;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const blob = await this.exportInventoryReportCSV(pin, params);
+        this.downloadCSV(blob, filename);
+        return; // Success, exit the retry loop
+      } catch (error) {
+        console.error(`Error exporting and downloading inventory CSV (attempt ${attempt}/${maxRetries}):`, error);
+        
+        // Don't retry on authentication errors
+        if (error instanceof Error && (
+          error.message.includes('PIN authentication failed') || 
+          error.message.includes('Invalid PIN') ||
+          error.message.includes('Unauthorized')
+        )) {
+          throw error;
+        }
+        
+        // If this is the last attempt, handle the error
+        if (attempt === maxRetries) {
+          // Provide more specific error messages for timeout issues
+          if (error instanceof Error) {
+            if (error.name === 'AbortError') {
+              throw new Error('Export request timed out after multiple attempts. This may be due to a large dataset. Please try filtering your data or contact support.');
+            }
+            if (error.message.includes('timeout') || error.message.includes('TimeoutError')) {
+              throw new Error('Export request timed out after multiple attempts. Please try again later or contact support.');
+            }
+          }
+          
+          throw error;
+        }
+        
+        // Wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+      }
     }
   }
 
@@ -543,6 +601,14 @@ class InventoryReportService {
    */
   private handleError(error: any): ApiError {
     if (error instanceof Error) {
+      // Handle timeout errors specifically
+      if (error.name === 'AbortError') {
+        return {
+          detail: 'Request timed out. Please try again.',
+          status: 408
+        };
+      }
+      
       return {
         detail: error.message,
         status: 500

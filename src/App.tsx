@@ -1,60 +1,43 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { authService } from './services/authService'
 import type { AuthState } from './types/auth'
+import { SidebarProvider, useSidebar } from './contexts/SidebarContext'
 import Login from './pages/Login'
 import ForgotPassword from './pages/ForgotPassword'
 import ChangePasswordFirstLogin from './pages/ChangePasswordFirstLogin'
-import Home from './pages/Home'
+import Dashboard from './pages/Dashboard'
 import StockIn from './pages/Stock'
 import ProcessManagement from './pages/ProcessManagement'
+import BatchProcessUpload from './pages/BatchProcessUpload'
 import Products from './pages/Products'
 import Dispatching from './pages/Dispatching'
+import Archive from './pages/Archive'
 import Users from './pages/Users'
+import UserProfile from './pages/UserProfile'
 import FinishedProducts from './pages/FinishedProducts'
 import SupplierPage from './pages/Supplier'
+import SalesReport from './pages/SalesReport'
+import InventoryReport from './pages/InventoryReport'
 import Settings from './pages/Settings'
 import Help from './pages/Help'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
-import Footer from './components/Footer'
 import './App.css'
 
 // Layout component for authenticated pages
 const AuthenticatedLayout = ({ children }: { children: React.ReactNode }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen)
-  }
-
-  // Close sidebar on mobile by default
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth <= 1024) {
-        setSidebarOpen(false)
-      } else {
-        setSidebarOpen(true)
-      }
-    }
-
-    // Set initial state
-    handleResize()
-    
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  const { isExpanded } = useSidebar()
 
   return (
     <div className="app-layout">
       <Header />
       <div className="main-layout">
-        <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
-        <main className={`main-content ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
+        <Sidebar />
+        <main className={`main-content ${isExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
           <div className="content-wrapper">
             {children}
           </div>
-          <Footer />
         </main>
       </div>
     </div>
@@ -86,7 +69,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/login" replace />
   }
 
-  return <AuthenticatedLayout>{children}</AuthenticatedLayout>
+  return (
+    <SidebarProvider>
+      <AuthenticatedLayout>{children}</AuthenticatedLayout>
+    </SidebarProvider>
+  )
 }
 
 // Public Route component (redirects if authenticated)
@@ -107,7 +94,6 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 
 function App() {
   const [authState, setAuthState] = useState<AuthState>(authService.getAuthState())
-  const location = useLocation()
 
   // Subscribe to auth state changes
   useEffect(() => {
@@ -165,10 +151,10 @@ function App() {
         
         {/* Protected routes - Main Application */}
         <Route 
-          path="/home" 
+          path="/dashboard" 
           element={
             <ProtectedRoute>
-              <Home />
+              <Dashboard />
             </ProtectedRoute>
           } 
         />
@@ -188,6 +174,15 @@ function App() {
           element={
             <ProtectedRoute>
               <ProcessManagement />
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route 
+          path="/batch-process-upload" 
+          element={
+            <ProtectedRoute>
+              <BatchProcessUpload />
             </ProtectedRoute>
           } 
         />
@@ -258,11 +253,58 @@ function App() {
           } 
         />
         
+        {/* Legacy Home Route - Redirect to Dashboard */}
+        <Route 
+          path="/home" 
+          element={
+            <Navigate to="/dashboard" replace />
+          } 
+        />
+        
+        {/* Archive Management Route */}
+        <Route 
+          path="/archive" 
+          element={
+            <ProtectedRoute>
+              <Archive />
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* User Profile Route */}
+        <Route 
+          path="/user-profile" 
+          element={
+            <ProtectedRoute>
+              <UserProfile />
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* Reports Routes */}
+        <Route 
+          path="/sales-report" 
+          element={
+            <ProtectedRoute>
+              <SalesReport />
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route 
+          path="/inventory-report" 
+          element={
+            <ProtectedRoute>
+              <InventoryReport />
+            </ProtectedRoute>
+          } 
+        />
+        
         {/* Default redirect based on authentication status */}
         <Route 
           path="/" 
           element={
-            <Navigate to={authState.isAuthenticated ? "/home" : "/login"} replace />
+            <Navigate to={authState.isAuthenticated ? "/dashboard" : "/login"} replace />
           } 
         />
         
@@ -270,7 +312,7 @@ function App() {
         <Route 
           path="*" 
           element={
-            <Navigate to={authState.isAuthenticated ? "/home" : "/login"} replace />
+            <Navigate to={authState.isAuthenticated ? "/dashboard" : "/login"} replace />
           } 
         />
       </Routes>

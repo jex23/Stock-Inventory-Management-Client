@@ -433,7 +433,7 @@ const StockPageContent: React.FC = () => {
 
   const filteredAndSortedBatches = (() => {
     try {
-      let filtered = batches.filter(batch => {
+      const filtered = batches.filter(batch => {
         // Ensure batch has required properties
         if (!batch || !batch.batch_number) return false
         
@@ -513,7 +513,7 @@ const StockPageContent: React.FC = () => {
 
   const filteredAndSortedStocks = (() => {
     try {
-      let filtered = stocks.filter(stock => {
+      const filtered = stocks.filter(stock => {
         // Ensure stock has required properties
         if (!stock || !stock.id) return false
         
@@ -757,30 +757,112 @@ const StockPageContent: React.FC = () => {
         </div>
       </div>
 
-      {/* View Toggle and Actions */}
-      <div className="stock-view-controls">
-        <div className="view-toggle">
-          <button
-            className={`view-toggle-btn ${viewMode === 'batches' ? 'active' : ''}`}
-            onClick={() => setViewMode('batches')}
-          >
-            📦 Batch Table
-          </button>
-          <button
-            className={`view-toggle-btn ${viewMode === 'individual' ? 'active' : ''}`}
-            onClick={() => setViewMode('individual')}
-          >
-            📋 Individual Table
-          </button>
+      {/* Single Row Controls */}
+      <div className="filters-bar">
+        <div className="filter-controls">
+          <div className="filter-group">
+            <label>View:</label>
+            <select
+              value={viewMode}
+              onChange={(e) => setViewMode(e.target.value as 'batches' | 'individual' | 'batch-upload')}
+              className="table-filter-select"
+            >
+              <option value="batches">📦 Batch Table</option>
+              <option value="individual">📋 Individual Table</option>
+              <option value="batch-upload">➕ Batch Upload</option>
+            </select>
+          </div>
+          
+          {(viewMode === 'batches' || viewMode === 'individual') && (
+            <>
+              <div className="filter-group">
+                <label>Search:</label>
+                <input
+                  type="text"
+                  placeholder={`Search ${viewMode === 'batches' ? 'batches' : 'stocks'}...`}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="table-search-input"
+                />
+              </div>
+              
+              <div className="filter-group">
+                <label>Category:</label>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value as StockCategory | 'all')}
+                  className="table-filter-select"
+                >
+                  <option value="all">All Categories</option>
+                  {STOCK_CATEGORIES.map(cat => (
+                    <option key={cat.value} value={cat.value}>{cat.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="filter-group">
+                <label>Status:</label>
+                <select
+                  value={archiveFilter === 'all' ? 'all' : archiveFilter ? 'true' : 'false'}
+                  onChange={(e) => setArchiveFilter(e.target.value === 'all' ? 'all' : e.target.value === 'true')}
+                  className="table-filter-select"
+                >
+                  <option value="all">All Status</option>
+                  <option value="false">Active</option>
+                  <option value="true">Archived</option>
+                </select>
+              </div>
+              
+              {viewMode === 'individual' && (
+                <div className="filter-group">
+                  <label>Usage:</label>
+                  <select
+                    value={usedFilter === 'all' ? 'all' : usedFilter ? 'true' : 'false'}
+                    onChange={(e) => setUsedFilter(e.target.value === 'all' ? 'all' : e.target.value === 'true')}
+                    className="table-filter-select"
+                  >
+                    <option value="all">All Usage</option>
+                    <option value="false">Available</option>
+                    <option value="true">Used</option>
+                  </select>
+                </div>
+              )}
+            </>
+          )}
         </div>
         
-        <div className="view-actions">
-          <button
-            className="table-btn table-btn-primary"
-            onClick={() => setViewMode('batch-upload')}
-          >
-            ➕ Batch Upload
-          </button>
+        <div className="filter-actions">
+          {(viewMode === 'batches' || viewMode === 'individual') && (
+            <>
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  setSearchTerm('')
+                  setCategoryFilter('all')
+                  setArchiveFilter('all')
+                  setUsedFilter('all')
+                }}
+              >
+                Clear Filters
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={loadInitialData}
+                disabled={loading}
+              >
+                🔄 Refresh
+              </button>
+            </>
+          )}
+          
+          {(viewMode === 'batches' || viewMode === 'individual') && (
+            <button
+              className="btn btn-primary"
+              onClick={() => setViewMode('batch-upload')}
+            >
+              ➕ Create Batch
+            </button>
+          )}
         </div>
       </div>
 
@@ -788,62 +870,14 @@ const StockPageContent: React.FC = () => {
       {viewMode === 'batches' && (
         <div className="table-container">
           <div className="table-header">
-            <div className="table-header-top">
-              <div className="table-header-info">
-                <h2 className="table-title">📦 Batch Inventory</h2>
-                <p className="table-subtitle">
-                  {filteredAndSortedBatches.length} of {batches.length} batches
-                  {(searchTerm || categoryFilter !== 'all' || archiveFilter !== 'all') && 
-                    <span style={{ color: '#3b82f6', fontWeight: '600' }}> (filtered)</span>
-                  }
-                </p>
-              </div>
-              
-              <div className="table-actions">
-                <div className="table-search">
-                  <span className="table-search-icon">🔍</span>
-                  <input
-                    type="text"
-                    placeholder="Search batches..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="table-search-input"
-                  />
-                </div>
-                
-                <div className="table-filter">
-                  <select
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value as StockCategory | 'all')}
-                    className="table-filter-select"
-                  >
-                    <option value="all">All Categories</option>
-                    {STOCK_CATEGORIES.map(cat => (
-                      <option key={cat.value} value={cat.value}>{cat.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="table-filter">
-                  <select
-                    value={archiveFilter === 'all' ? 'all' : archiveFilter ? 'true' : 'false'}
-                    onChange={(e) => setArchiveFilter(e.target.value === 'all' ? 'all' : e.target.value === 'true')}
-                    className="table-filter-select"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="false">Active</option>
-                    <option value="true">Archived</option>
-                  </select>
-                </div>
-                
-                <button
-                  className="table-btn table-btn-secondary"
-                  onClick={loadInitialData}
-                  disabled={loading}
-                >
-                  {loading ? '🔄' : '🔄'} Refresh
-                </button>
-              </div>
+            <div className="table-header-info">
+              <h2 className="table-title">📦 Batch Inventory</h2>
+              <p className="table-subtitle">
+                {filteredAndSortedBatches.length} of {batches.length} batches
+                {(searchTerm || categoryFilter !== 'all' || archiveFilter !== 'all') && 
+                  <span style={{ color: '#3b82f6', fontWeight: '600' }}> (filtered)</span>
+                }
+              </p>
             </div>
           </div>
 
@@ -1101,74 +1135,14 @@ const StockPageContent: React.FC = () => {
       {viewMode === 'individual' && (
         <div className="table-container">
           <div className="table-header">
-            <div className="table-header-top">
-              <div className="table-header-info">
-                <h2 className="table-title">📋 Individual Stock Items</h2>
-                <p className="table-subtitle">
-                  {filteredAndSortedStocks.length} of {stocks.length} stock items
-                  {(searchTerm || categoryFilter !== 'all' || archiveFilter !== 'all' || usedFilter !== 'all') && 
-                    <span style={{ color: '#3b82f6', fontWeight: '600' }}> (filtered)</span>
-                  }
-                </p>
-              </div>
-              
-              <div className="table-actions">
-                <div className="table-search">
-                  <span className="table-search-icon">🔍</span>
-                  <input
-                    type="text"
-                    placeholder="Search stock..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="table-search-input"
-                  />
-                </div>
-                
-                <div className="table-filter">
-                  <select
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value as StockCategory | 'all')}
-                    className="table-filter-select"
-                  >
-                    <option value="all">All Categories</option>
-                    {STOCK_CATEGORIES.map(cat => (
-                      <option key={cat.value} value={cat.value}>{cat.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="table-filter">
-                  <select
-                    value={archiveFilter === 'all' ? 'all' : archiveFilter ? 'true' : 'false'}
-                    onChange={(e) => setArchiveFilter(e.target.value === 'all' ? 'all' : e.target.value === 'true')}
-                    className="table-filter-select"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="false">Active</option>
-                    <option value="true">Archived</option>
-                  </select>
-                </div>
-
-                <div className="table-filter">
-                  <select
-                    value={usedFilter === 'all' ? 'all' : usedFilter ? 'true' : 'false'}
-                    onChange={(e) => setUsedFilter(e.target.value === 'all' ? 'all' : e.target.value === 'true')}
-                    className="table-filter-select"
-                  >
-                    <option value="all">All Availability</option>
-                    <option value="false">Available</option>
-                    <option value="true">Used</option>
-                  </select>
-                </div>
-                
-                <button
-                  className="table-btn table-btn-secondary"
-                  onClick={loadInitialData}
-                  disabled={loading}
-                >
-                  {loading ? '🔄' : '🔄'} Refresh
-                </button>
-              </div>
+            <div className="table-header-info">
+              <h2 className="table-title">📋 Individual Stock Items</h2>
+              <p className="table-subtitle">
+                {filteredAndSortedStocks.length} of {stocks.length} stock items
+                {(searchTerm || categoryFilter !== 'all' || archiveFilter !== 'all' || usedFilter !== 'all') && 
+                  <span style={{ color: '#3b82f6', fontWeight: '600' }}> (filtered)</span>
+                }
+              </p>
             </div>
           </div>
 

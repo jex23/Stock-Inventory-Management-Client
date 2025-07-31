@@ -1,5 +1,373 @@
 /* ProcessManagement.css */
 
+/* Quality Control Styles */
+.quality-control-cell {
+  min-width: 120px;
+}
+
+.quality-control-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quality-data {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.good-count, .defect-count, .price-output {
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.good-count {
+  background: #dcfce7;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.defect-count {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.price-output {
+  background: #fef3c7;
+  color: #d97706;
+  border: 1px solid #fed7aa;
+}
+
+.no-qc-data {
+  font-size: 12px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.item-actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* Quality Control Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  max-width: 500px;
+  width: 90%;
+  max-height: 90%;
+  overflow: hidden;
+}
+
+.quality-control-modal .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.modal-close:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: #374151;
+  font-size: 14px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.quality-summary {
+  background: #f3f4f6;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border-left: 4px solid #3b82f6;
+}
+
+.quality-summary strong {
+  display: block;
+  color: #1f2937;
+  margin-bottom: 4px;
+}
+
+.quality-rate {
+  color: #059669;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.btn-xs {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+/* Batch Quality Control Styles */
+.batch-quality-control-cell {
+  min-width: 180px;
+  max-width: 220px;
+}
+
+.batch-quality-control-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.batch-quality-data {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.batch-qc-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.qc-output-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.batch-good-count, .batch-defect-count, .batch-success-rate, .batch-total-price {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+.batch-good-count {
+  background: #dcfce7;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.batch-defect-count {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.batch-success-rate {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.batch-total-price {
+  background: #fef3c7;
+  color: #d97706;
+  border: 1px solid #fed7aa;
+}
+
+.qc-status {
+  margin-top: 4px;
+}
+
+.qc-completion {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.qc-completion.complete {
+  background: #dcfce7;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.qc-completion.partial {
+  background: #fef3c7;
+  color: #d97706;
+  border: 1px solid #fed7aa;
+}
+
+.no-batch-qc-data {
+  font-size: 12px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Batch Item Quality Control in Expanded View */
+.batch-item-quality-control {
+  min-width: 120px;
+}
+
+.batch-item-quality-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.batch-item-quality-data {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.batch-item-good, .batch-item-defect, .batch-item-price {
+  font-size: 11px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.batch-item-good {
+  background: #dcfce7;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.batch-item-defect {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.batch-item-price {
+  background: #fef3c7;
+  color: #d97706;
+  border: 1px solid #fed7aa;
+}
+
+.batch-item-no-qc {
+  font-size: 11px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.batch-item-actions {
+  display: flex;
+  gap: 2px;
+}
+
 .process-management {
   display: flex;
   flex-direction: column;
@@ -416,10 +784,197 @@
   font-family: 'Monaco', 'Menlo', monospace;
 }
 
+/* Enhanced Table Styling */
+.item-id {
+  font-weight: 600;
+  color: #374151;
+}
+
+.stock-batch {
+  background: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+}
+
+.product-name {
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.pieces-used {
+  color: #dc2626;
+}
+
+.pieces-unit {
+  font-size: 0.625rem;
+  color: #9ca3af;
+  margin-left: 2px;
+  font-weight: normal;
+}
+
+.operator-name {
+  font-weight: 500;
+  color: #4b5563;
+}
+
+.date-display {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.selection-summary {
+  color: #3b82f6;
+  font-weight: 500;
+  margin-left: 8px;
+}
+
+/* Table Footer */
+.table-footer {
+  padding: 12px 16px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.table-summary {
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
 /* Batch Actions */
 .batch-actions {
   display: flex;
   gap: 4px;
+}
+
+/* Batch Row Styling */
+.batch-row {
+  background: #ffffff;
+  border-left: 3px solid #e5e7eb;
+}
+
+.batch-row.selected {
+  background: #eff6ff;
+  border-left: 3px solid #3b82f6;
+}
+
+.batch-row:hover {
+  background: #f9fafb;
+}
+
+.batch-number-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.batch-expand-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.batch-expand-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.batch-item-count {
+  color: #059669;
+  font-weight: 600;
+}
+
+.item-label {
+  font-size: 0.625rem;
+  color: #9ca3af;
+  margin-left: 4px;
+}
+
+/* Batch Details Expansion */
+.batch-details-row {
+  background: #f8fafc;
+  border: none;
+}
+
+.batch-details {
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin: 8px;
+  background: white;
+}
+
+.batch-details h4 {
+  margin: 0 0 16px 0;
+  color: #1f2937;
+  font-size: 1.125rem;
+  font-weight: 600;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.batch-items-table {
+  margin-top: 16px;
+}
+
+.items-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.items-detail-table th {
+  background: #f9fafb;
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.items-detail-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
+  font-size: 0.875rem;
+  color: #1f2937;
+}
+
+.items-detail-table tr:hover {
+  background: #f9fafb;
+}
+
+.items-detail-table tr:last-child td {
+  border-bottom: none;
+}
+
+.stock-info {
+  background: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+}
+
+.product-info {
+  font-weight: 500;
+  color: #1f2937;
+  font-size: 0.875rem;
 }
 
 /* Analytics */
@@ -497,6 +1052,32 @@
   font-size: 0.875rem;
   max-width: 300px;
   margin: 0 auto;
+}
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border: 1px solid #e5e7eb;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
 }
 
 /* Loading Overlay */

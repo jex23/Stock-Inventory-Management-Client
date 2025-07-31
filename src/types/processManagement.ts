@@ -31,6 +31,11 @@ export interface ProcessManagementResponse {
   manufactured_date: string;
   updated_at: string;
   
+  // Quality control fields
+  good?: number | null;                 // Good pieces produced
+  defect?: number | null;               // Defective pieces produced  
+  price_output?: number | null;         // Output price after quality control
+  
   // Related data from joins
   stock_batch?: string | null;
   finished_product_name?: string | null;
@@ -339,6 +344,33 @@ export interface PieceAnalytics {
     total_pieces: number;
     process_count: number;
   }[];
+}
+
+// =============================================================================
+// QUALITY CONTROL TYPES
+// =============================================================================
+
+export interface QualityControlUpdate {
+  good?: number | null;
+  defect?: number | null;
+  price_output?: number | null;
+}
+
+export interface BatchQualityControlUpdate {
+  process_batch_number: string;
+  good?: number | null;
+  defect?: number | null;
+  price_output?: number | null;
+}
+
+export interface QualityControlResponse {
+  process_id: number;
+  process_batch_number: string | null;
+  good?: number | null;
+  defect?: number | null;
+  price_output?: number | null;
+  has_quality_control: boolean;
+  total_output?: number | null;
 }
 
 // =============================================================================
